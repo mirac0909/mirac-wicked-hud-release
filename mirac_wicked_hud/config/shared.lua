@@ -150,7 +150,8 @@ Config.VehicleWarnings = {
 
 Config.Minimap = {
     mode = 'vehicle', -- vehicle, always, never
-    hideNativeVitals = true
+    hideNativeVitals = true,
+    zoom = 1125 -- subtle zoom-out; higher values show a wider area
 }
 
 -- Keeps HUD edges inside the GTA safe-zone without changing the visual design.
@@ -165,5 +166,5 @@ Config.DefaultSettings = {
     minimal = false,
     position = 'top-right',
     palette = 'ocean',
-    opacity = 85 -- 40-100; lower values make the whole HUD more transparent
+    opacity = 100 -- 40-100; lower values make the whole HUD more transparent
 }

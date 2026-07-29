@@ -416,6 +416,7 @@ function Hud.validateSharedConfig()
     else
         if not Hud.isOneOf(Config.Minimap.mode, { 'vehicle', 'always', 'never' }) then add('Config.Minimap.mode') end
         if type(Config.Minimap.hideNativeVitals) ~= 'boolean' then add('Config.Minimap.hideNativeVitals') end
+        if not Hud.isNumberInRange(Config.Minimap.zoom, 0, 2000) then add('Config.Minimap.zoom') end
     end
 
     if type(Config.SafeZone) ~= 'table' then

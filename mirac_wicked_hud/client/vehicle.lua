@@ -43,6 +43,7 @@ local function configureMinimap()
     SetMinimapComponentPosition('minimap', 'L', 'B', -0.0045, -0.0220, 0.1500, 0.1889)
     SetMinimapComponentPosition('minimap_mask', 'L', 'B', 0.0200, 0.0320, 0.1110, 0.1590)
     SetMinimapComponentPosition('minimap_blur', 'L', 'B', -0.0300, 0.0220, 0.2660, 0.2370)
+    SetRadarZoom(Config.Minimap.zoom)
 end
 
 local function restoreMinimapLayout()
@@ -324,6 +325,18 @@ local function updateVehicleWarningSounds(vehicle, fuel, engine)
     end
 end
 
+local function isEmergencySignalActive(vehicle)
+    local lightsState = IsVehicleSirenOn(vehicle)
+    local audioState = false
+
+    if type(IsVehicleSirenAudioOn) == 'function' then
+        audioState = IsVehicleSirenAudioOn(vehicle)
+    end
+
+    return lightsState == true or lightsState == 1
+        or audioState == true or audioState == 1
+end
+
 local function vehicleSnapshot(vehicle)
     if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return false end
 
@@ -335,6 +348,7 @@ local function vehicleSnapshot(vehicle)
     local nitro = readNitro(vehicle)
     updateNitroSounds(vehicle, nitro)
     local nitroValue = false
+    local nitroActive = nitro ~= false and Entity(vehicle).state.nitroActive == true
     local fuel = Hud.round(Hud.clamp(Hud.Fuel.get(vehicle), 0, 100) or 0)
     local engine = Hud.round(Hud.clamp(GetVehicleEngineHealth(vehicle) / 10, 0, 100) or 0)
     if nitro ~= false then nitroValue = Hud.round(nitro) end
@@ -346,8 +360,10 @@ local function vehicleSnapshot(vehicle)
         fuel = fuel,
         engine = engine,
         nitro = nitroValue,
+        nitroActive = nitroActive,
         seatbeltAvailable = supportsSeatbelt(vehicle),
         seatbelt = readSeatbelt(vehicle),
+        emergencyLights = isEmergencySignalActive(vehicle),
         gear = gear == 0 and (speed < 1 and 'N' or 'R') or tostring(gear)
     }
 end
@@ -496,6 +512,7 @@ CreateThread(function()
             if not vehicle or vehicle == 0 then Hud.sendNuiUpdate({ vehicle = false }) end
             Wait(vehicle and Config.Client.hiddenUpdateInterval or Config.Client.idleVehicleInterval)
         else
+            SetRadarZoom(Config.Minimap.zoom)
             Hud.sendNuiUpdate({ vehicle = vehicleSnapshot(vehicle) })
             Wait(Config.Client.vehicleUpdateInterval)
         end
