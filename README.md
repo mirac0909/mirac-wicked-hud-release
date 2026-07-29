@@ -3,6 +3,10 @@
 > **Project note:** This is not a serious or commercial project. It was made
 > casually in my spare time as a personal experiment and shared as-is.
 
+> **Development platform:** The entire project was developed and tested on
+> **GTA V Enhanced**. GTA V Enhanced is the primary supported and validated
+> game version for this release.
+
 [![FiveM](https://img.shields.io/badge/FiveM-Cerulean-f40552)](https://fivem.net/)
 [![Framework](https://img.shields.io/badge/Framework-Qbox-4f46e5)](https://github.com/Qbox-project/qbx_core)
 [![Dependency](https://img.shields.io/badge/Dependency-ox__lib-22c55e)](https://github.com/overextended/ox_lib)
@@ -16,10 +20,6 @@ Mirac Wicked HUD provides player status panels, a vehicle HUD, minimap
 handling, voice indicators, themes, notifications, TextUI and a complete
 in-game settings interface. Framework-specific behavior is isolated behind
 bridges so server owners can configure integrations without editing the NUI.
-
-> **Development platform:** The entire project was developed and tested on
-> **GTA V Enhanced**. GTA V Enhanced is the primary supported and validated
-> game version for this release.
 
 ## Preview
 
