@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0 — 2026-07-29
+
+- Added interaction-aware ownership for the shared nitro and seatbelt
+  indicator, including safe fallback after nitro use or depletion.
+- Preserved the flashing unbuckled warning even when nitro is installed.
+- Added robust emergency-signal detection for standard and add-on vehicles.
+- Moved siren feedback to a subtle animated red-purple-blue vehicle accent.
+- Added configurable minimap zoom and changed the default HUD opacity to 100%.
+- Updated configuration validation and NUI cache versions.
+
 ## 1.2.0 — 2026-07-29
 
 - Added resource-owned notification and TextUI systems with pedestrian and
