@@ -45,7 +45,7 @@ let hudSettingsState = {
   minimal: false,
   position: 'top-right',
   palette: 'ocean',
-  opacity: 85,
+  opacity: 100,
   notificationSafetyLimit: 100
 };
 
@@ -79,7 +79,7 @@ let hudConfig = {
   vehicleDetails: { enabled: true },
   identity: { serverLabel: 'OX', permanentIdMaxLength: 12 },
   palette: 'ocean',
-  opacity: 85
+  opacity: 100
 };
 let uiLocale = {
   enabled: 'Enabled',
@@ -234,6 +234,21 @@ let lastNitroValue = null;
 let nitroChangeTimer = null;
 let nitroEmptyAttemptAnimation = null;
 let nitroEmptyAttemptTimer = null;
+let safetySlotTimer = null;
+let safetySlotOwner = null;
+let lastSeatbeltState = null;
+let lastNitroActive = false;
+let lastHadNitro = false;
+let vehicleSafetyState = {
+  hasNitro: false,
+  nitro: 0,
+  seatbelt: false,
+  seatbeltAvailable: false
+};
+
+const NITRO_SLOT_HOLD_MS = 1600;
+const BUCKLED_SLOT_HOLD_MS = 1100;
+const EMPTY_NITRO_SLOT_HOLD_MS = 950;
 
 const statuses = {
   health: {
@@ -802,12 +817,82 @@ function setVehicleNitro(value, animate = true) {
   lastNitroValue = nitro;
 }
 
+function getSafetySlotFallback() {
+  if (vehicleSafetyState.seatbeltAvailable && vehicleSafetyState.seatbelt !== true) return 'seatbelt';
+  if (vehicleSafetyState.hasNitro && vehicleSafetyState.nitro > 0) return 'nitro';
+  if (vehicleSafetyState.seatbeltAvailable) return 'seatbelt';
+  return null;
+}
+
+function renderSafetySlot() {
+  const showNitro = safetySlotOwner === 'nitro' && vehicleSafetyState.hasNitro;
+  const showSeatbelt = safetySlotOwner === 'seatbelt' && vehicleSafetyState.seatbeltAvailable;
+
+  vehicleUi.nitroGauge.classList.toggle('is-safety-hidden', !showNitro && !showSeatbelt);
+  vehicleUi.nitroGauge.classList.toggle('is-seatbelt', showSeatbelt);
+  vehicleUi.nitroGauge.classList.toggle('is-unbuckled', showSeatbelt && vehicleSafetyState.seatbelt !== true);
+
+  if (showSeatbelt) {
+    vehicleUi.nitroGauge.setAttribute(
+      'aria-label',
+      translate(vehicleSafetyState.seatbelt === true ? 'seatbelt_on' : 'seatbelt_off')
+    );
+  } else if (showNitro) {
+    vehicleUi.nitroGauge.setAttribute('aria-label', translate('nitro_percent', vehicleSafetyState.nitro));
+  }
+}
+
+function selectSafetySlot(owner, holdMs = 0) {
+  window.clearTimeout(safetySlotTimer);
+  safetySlotTimer = null;
+  safetySlotOwner = owner;
+  renderSafetySlot();
+
+  if (holdMs > 0) {
+    safetySlotTimer = window.setTimeout(() => {
+      safetySlotTimer = null;
+      safetySlotOwner = getSafetySlotFallback();
+      renderSafetySlot();
+    }, holdMs);
+  }
+}
+
+function resetVehicleSafetySlot() {
+  window.clearTimeout(safetySlotTimer);
+  window.clearTimeout(nitroChangeTimer);
+  window.clearTimeout(nitroEmptyAttemptTimer);
+  safetySlotTimer = null;
+  nitroChangeTimer = null;
+  nitroEmptyAttemptTimer = null;
+  nitroEmptyAttemptAnimation?.cancel();
+  nitroEmptyAttemptAnimation = null;
+  safetySlotOwner = null;
+  lastNitroValue = null;
+  lastSeatbeltState = null;
+  lastNitroActive = false;
+  lastHadNitro = false;
+  vehicleSafetyState = {
+    hasNitro: false,
+    nitro: 0,
+    seatbelt: false,
+    seatbeltAvailable: false
+  };
+  vehicleUi.nitroGauge.classList.remove(
+    'is-changing',
+    'is-empty-attempt',
+    'is-low',
+    'is-critical',
+    'is-seatbelt',
+    'is-unbuckled'
+  );
+}
+
 function animateEmptyNitroAttempt() {
-  if (!vehicleMode || lastNitroValue === null || lastNitroValue > 0
-      || vehicleUi.nitroGauge.classList.contains('is-seatbelt')) return;
+  if (!vehicleMode || !vehicleSafetyState.hasNitro || vehicleSafetyState.nitro > 0) return;
 
   nitroEmptyAttemptAnimation?.cancel();
   window.clearTimeout(nitroEmptyAttemptTimer);
+  selectSafetySlot('nitro', EMPTY_NITRO_SLOT_HOLD_MS);
   vehicleUi.nitroGauge.classList.remove('is-empty-attempt');
   void vehicleUi.nitroGauge.offsetWidth;
   vehicleUi.nitroGauge.classList.add('is-empty-attempt');
@@ -827,25 +912,70 @@ function animateEmptyNitroAttempt() {
   }, 900);
 }
 
-function setVehicleSafety(nitroValue, seatbelt, seatbeltAvailable = true) {
+function setVehicleSafety(nitroValue, seatbelt, seatbeltAvailable = true, nitroActive = false) {
   const hasNitro = nitroValue !== false && nitroValue !== null && nitroValue !== undefined;
-  vehicleUi.nitroGauge.classList.toggle('is-safety-hidden', !hasNitro && !seatbeltAvailable);
-  vehicleUi.nitroGauge.classList.toggle('is-seatbelt', !hasNitro);
-  vehicleUi.nitroGauge.classList.toggle('is-unbuckled', !hasNitro && seatbelt !== true);
+  const nitro = hasNitro ? Math.round(clamp(nitroValue)) : 0;
+  const previousNitro = lastNitroValue;
+  const seatbeltChanged = lastSeatbeltState !== null && lastSeatbeltState !== (seatbelt === true);
+  const nitroChanged = hasNitro && previousNitro !== null && nitro !== previousNitro;
+  const nitroStarted = nitroActive === true && lastNitroActive !== true;
+  const nitroInstalled = hasNitro && lastHadNitro !== true;
+  const nitroDepleted = hasNitro && previousNitro !== null && previousNitro > 0 && nitro <= 0;
+
+  vehicleSafetyState = {
+    hasNitro,
+    nitro,
+    seatbelt: seatbelt === true,
+    seatbeltAvailable: seatbeltAvailable === true
+  };
 
   if (hasNitro) {
-    setVehicleNitro(nitroValue);
+    setVehicleNitro(nitro);
+  } else {
+    window.clearTimeout(nitroChangeTimer);
+    nitroChangeTimer = null;
+    vehicleUi.nitroGauge.classList.remove('is-changing', 'is-low', 'is-critical');
+    lastNitroValue = null;
+  }
+
+  lastSeatbeltState = seatbelt === true;
+  lastNitroActive = nitroActive === true;
+  lastHadNitro = hasNitro;
+
+  if (seatbeltChanged && seatbeltAvailable === true) {
+    selectSafetySlot(
+      'seatbelt',
+      seatbelt === true && hasNitro && nitro > 0 ? BUCKLED_SLOT_HOLD_MS : 0
+    );
     return;
   }
 
-  window.clearTimeout(nitroChangeTimer);
-  vehicleUi.nitroGauge.classList.remove('is-changing', 'is-low', 'is-critical');
-  vehicleUi.nitroGauge.setAttribute('aria-label', translate(seatbelt === true ? 'seatbelt_on' : 'seatbelt_off'));
-  lastNitroValue = null;
+  if (nitroDepleted) {
+    selectSafetySlot('nitro', EMPTY_NITRO_SLOT_HOLD_MS);
+    return;
+  }
+
+  if (hasNitro && nitro > 0 && (nitroInstalled || nitroStarted || nitroChanged)) {
+    selectSafetySlot('nitro', NITRO_SLOT_HOLD_MS);
+    return;
+  }
+
+  const ownerUnavailable = (safetySlotOwner === 'nitro' && !hasNitro)
+    || (safetySlotOwner === 'seatbelt' && seatbeltAvailable !== true);
+  const emptyNitroWithoutHold = safetySlotOwner === 'nitro' && nitro <= 0 && safetySlotTimer === null;
+
+  if (safetySlotOwner === null || ownerUnavailable || emptyNitroWithoutHold) {
+    selectSafetySlot(getSafetySlotFallback());
+  } else {
+    renderSafetySlot();
+  }
 }
 
 function updateVehicle(vehicle) {
   const nextVehicleMode = Boolean(vehicle);
+  const emergencyLightsActive = nextVehicleMode
+    && (vehicle.emergencyLights === true || Number(vehicle.emergencyLights) === 1);
+  app.classList.toggle('is-emergency-lights', emergencyLightsActive);
 
   if (nextVehicleMode && vehicleExiting) {
     window.clearTimeout(vehicleExitTimer);
@@ -871,6 +1001,7 @@ function updateVehicle(vehicle) {
         app.classList.remove('is-vehicle', 'is-vehicle-exiting');
         vehiclePanel.classList.add('is-hidden');
         vehicleDetailPanel.classList.add('is-hidden');
+        resetVehicleSafetySlot();
         scheduleTopStatusAnchor();
       }, 780);
     }
@@ -930,9 +1061,7 @@ function updateVehicle(vehicle) {
   if (!vehicle || !vehicleRevealReady) {
     vehiclePanel.classList.add('is-hidden');
     vehicleDetailPanel.classList.add('is-hidden');
-    lastNitroValue = null;
-    window.clearTimeout(nitroChangeTimer);
-    vehicleUi.nitroGauge.classList.remove('is-changing');
+    if (!vehicle) resetVehicleSafetySlot();
     return modeChanged;
   }
 
@@ -953,7 +1082,7 @@ function updateVehicle(vehicle) {
   vehicleUi.detailNitroValue.textContent = String(hasNitro ? Math.round(clamp(vehicle.nitro)) : 0);
   setVehicleMeter(vehicleUi.fuelBar, fuel);
   setVehicleMeter(vehicleUi.engineBar, engine);
-  setVehicleSafety(vehicle.nitro, vehicle.seatbelt, vehicle.seatbeltAvailable);
+  setVehicleSafety(vehicle.nitro, vehicle.seatbelt, vehicle.seatbeltAvailable, vehicle.nitroActive);
   return modeChanged;
 }
 

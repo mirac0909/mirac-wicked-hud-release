@@ -23,7 +23,7 @@
   --red: #fb7185;
   --safe-zone-x: 0vw;
   --safe-zone-y: 0vh;
-  --hud-opacity: 0.85;
+  --hud-opacity: 1;
   --card-enter-duration: 420ms;
   --card-exit-duration: 320ms;
   --card-enter-easing: cubic-bezier(0.16, 1, 0.3, 1);
@@ -3663,8 +3663,7 @@ body {
   }
 }
 
-/* Align the minimap frame with the complete TAB-details + speed column.
-   The horizontal geometry is already correct; only the vertical shell grows. */
+/* Fixed layout anchor shared by the minimap, telemetry and TAB details. */
 .hud.is-vehicle .minimap-frame {
   bottom: 2.85vh;
   height: calc(16.4vh + 11px);
@@ -3748,7 +3747,37 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Emergency signal: move the red/blue response into the vehicle panel's
+   existing vertical accent so neither the map nor the panel frame flashes. */
+.hud.is-vehicle.is-emergency-lights .vehicle-accent {
+  width: 4px;
+  background: linear-gradient(
+    180deg,
+    rgba(248, 74, 95, 0.9) 0%,
+    rgba(139, 92, 246, 0.72) 28%,
+    rgba(59, 130, 246, 0.92) 50%,
+    rgba(139, 92, 246, 0.72) 72%,
+    rgba(248, 74, 95, 0.9) 100%
+  );
+  background-size: 100% 260%;
+  box-shadow:
+    0 0 7px rgba(239, 68, 68, 0.34),
+    0 0 11px rgba(59, 130, 246, 0.22);
+  animation: emergency-accent-flow 1500ms ease-in-out infinite;
+}
+
+@keyframes emergency-accent-flow {
+  0%,
+  100% { background-position: 50% 0%; }
+  50% { background-position: 50% 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .hud.is-vehicle.is-emergency-lights .vehicle-accent {
+    animation: none;
+    background-position: 50% 50%;
+  }
+
   .hud.is-vehicle.is-vehicle-entering .vehicle-panel,
   .hud.is-vehicle.is-vehicle-entering .vehicle-accent,
   .hud.is-vehicle.is-vehicle-entering .speed-block,
