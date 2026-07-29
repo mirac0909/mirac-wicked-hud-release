@@ -1,5 +1,8 @@
 # Mirac Wicked HUD
 
+> **Project note:** This is not a serious or commercial project. It was made
+> casually in my spare time as a personal experiment and shared as-is.
+
 [![FiveM](https://img.shields.io/badge/FiveM-Cerulean-f40552)](https://fivem.net/)
 [![Framework](https://img.shields.io/badge/Framework-Qbox-4f46e5)](https://github.com/Qbox-project/qbx_core)
 [![Dependency](https://img.shields.io/badge/Dependency-ox__lib-22c55e)](https://github.com/overextended/ox_lib)
