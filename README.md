@@ -18,6 +18,21 @@ bridges so server owners can configure integrations without editing the NUI.
 
 [Watch the complete Mirac Wicked HUD demo on YouTube](https://youtu.be/0BhiHlxuI8k)
 
+<table>
+  <tr>
+    <td><img src="assets/screenshots/on-foot-normal-status.jpg" alt="Normal on-foot HUD"></td>
+    <td><img src="assets/screenshots/on-foot-critical-statuses.jpg" alt="Critical on-foot status panels"></td>
+  </tr>
+  <tr>
+    <td><img src="assets/screenshots/on-foot-identity-details.jpg" alt="On-foot identity details"></td>
+    <td><img src="assets/screenshots/hud-settings-emerald.jpg" alt="HUD settings with the Emerald palette"></td>
+  </tr>
+  <tr>
+    <td><img src="assets/screenshots/vehicle-speed-rpm.jpg" alt="Vehicle speed, gear and RPM HUD"></td>
+    <td><img src="assets/screenshots/vehicle-critical-status.jpg" alt="Vehicle HUD with critical status values"></td>
+  </tr>
+</table>
+
 ## Highlights
 
 - Health, armour, stamina, oxygen, hunger and thirst indicators
@@ -117,6 +132,7 @@ No ox_lib replacement or overlay is included.
 ## Repository layout
 
 - `mirac_wicked_hud/` — installable FiveM resource
+- `assets/screenshots/` — repository preview images
 - `CHANGELOG.md` — release history
 - `CONTRIBUTING.md` — contribution and validation guidance
 - `SECURITY.md` — security reporting policy
