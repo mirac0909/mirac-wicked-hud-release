@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title data-i18n="document_title">Mirac Wicked HUD</title>
+<link href="style.css?v=151" rel="stylesheet"/>
+</head>
+<body>
+<main aria-hidden="true" class="hud is-panels-hidden is-transient-hidden" id="app">
+<section aria-label="Player information" class="identity-panel glass" data-i18n-aria="player_info" id="identity-panel">
+<div class="server-mark">
+<span class="server-dot"></span>
+<span id="server-label">OX</span>
+</div>
+<div class="identity-divider"></div>
+<div class="identity-item">
+<span class="identity-label" data-i18n="label_id">ID</span>
+<strong id="server-id">0</strong>
+</div>
+<div class="identity-item">
+<span class="identity-label" data-i18n="label_time">TIME</span>
+<strong id="game-time">00:00</strong>
+</div>
+<div aria-label="Voice mode: Normal" class="voice" data-i18n-title="voice_status" data-voice-mode="2" id="voice" role="img" title="Voice mode: Normal">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21H8v2h8v-2h-3v-3.08A7 7 0 0 0 19 11h-2Z"></path></svg>
+<span aria-hidden="true" class="voice-range"><i></i><i></i><i></i></span>
+</div>
+<div aria-hidden="true" class="identity-summary">
+<span class="summary-health"><i id="summary-health"></i></span>
+<span class="summary-armour"><i id="summary-armour"></i></span>
+<span class="summary-stamina"><i id="summary-stamina"></i></span>
+<span class="summary-hunger"><i id="summary-hunger"></i></span>
+<span class="summary-thirst"><i id="summary-thirst"></i></span>
+</div>
+</section>
+<section aria-label="Location" class="location-panel glass" data-i18n-aria="location" id="location-panel">
+<div class="compass" id="compass">N</div>
+<div class="location-copy">
+<strong data-i18n="locating" id="street">Locating</strong>
+<span id="area"></span>
+</div>
+</section>
+<div aria-hidden="true" class="minimap-frame" id="minimap-frame">
+<span class="minimap-accent minimap-accent-top"></span>
+<span class="minimap-accent minimap-accent-bottom"></span>
+</div>
+<section aria-label="Player statuses" class="status-dock glass" data-i18n-aria="player_statuses" id="status-dock">
+<article class="status status-identity-ids">
+<div class="status-icon identity-status-icon">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="M4 5h16v14H4z"></path><path d="M8 9h3M8 13h5M15 9h2M15 13h2"></path></svg>
+</div>
+<div class="identity-peek-values">
+<span><small data-i18n="label_temporary_id">SESSION ID</small><strong id="temporary-id">0</strong></span>
+<span><small data-i18n="label_permanent_id">PERMANENT ID</small><strong id="permanent-id">0</strong></span>
+</div>
+</article>
+<article class="status status-health" data-status="health">
+<div class="status-icon">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="M12 21s-7-4.35-9.33-8.4C.79 9.34 2.1 5.5 5.55 4.52 7.52 3.96 9.2 4.7 12 7.23c2.8-2.53 4.48-3.27 6.45-2.71 3.45.98 4.76 4.82 2.88 8.08C19 16.65 12 21 12 21Z"></path></svg>
+</div>
+<div class="status-copy"><span data-i18n="health">Health</span><strong id="health-value">100</strong></div>
+<div class="status-track"><i id="health-bar"></i></div>
+</article>
+<article class="status status-armour" data-status="armour">
+<div class="status-icon">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="M12 2 4 5v6c0 5.3 3.4 9.74 8 11 4.6-1.26 8-5.7 8-11V5l-8-3Zm0 3.18 5 1.87V11c0 3.76-2.22 6.98-5 8.13C9.22 17.98 7 14.76 7 11V7.05l5-1.87Z"></path></svg>
+</div>
+<div class="status-copy"><span data-i18n="armour">Armour</span><strong id="armour-value">0</strong></div>
+<div class="status-track"><i id="armour-bar"></i></div>
+</article>
+<article class="status status-stamina" data-status="stamina">
+<div class="status-icon">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 9-12h-7l1-8Z"></path></svg>
+</div>
+<div class="status-copy"><span data-i18n="stamina">Stamina</span><strong id="stamina-value">100</strong></div>
+<div class="status-track"><i id="stamina-bar"></i></div>
+</article>
+<article class="status status-oxygen is-optional" data-status="oxygen" id="oxygen-card">
+<div class="status-icon">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="M8.5 3.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7ZM15.5 11a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5ZM7 15a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM17.5 3a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"></path></svg>
+</div>
+<div class="status-copy"><span data-i18n="oxygen">Oxygen</span><strong id="oxygen-value">100</strong></div>
+<div class="status-track"><i id="oxygen-bar"></i></div>
+</article>
+<article class="status status-hunger is-optional" data-status="hunger" id="hunger-card">
+<div class="status-icon">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="M4 10h16a2 2 0 0 1 2 2v1H2v-1a2 2 0 0 1 2-2Zm-1 5h18l-1.2 4.2A2.5 2.5 0 0 1 17.4 21H6.6a2.5 2.5 0 0 1-2.4-1.8L3 15Zm2.2-7C6.1 4.9 8.56 3 12 3s5.9 1.9 6.8 5H5.2Z"></path></svg>
+</div>
+<div class="status-copy"><span data-i18n="hunger">Hunger</span><strong id="hunger-value">100</strong></div>
+<div class="status-track"><i id="hunger-bar"></i></div>
+</article>
+<article class="status status-thirst is-optional" data-status="thirst" id="thirst-card">
+<div class="status-icon">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="M12 2s7 7.1 7 12a7 7 0 1 1-14 0c0-4.9 7-12 7-12Zm0 16a4 4 0 0 0 4-4h-2a2 2 0 0 1-2 2v2Z"></path></svg>
+</div>
+<div class="status-copy"><span data-i18n="thirst">Thirst</span><strong id="thirst-value">100</strong></div>
+<div class="status-track"><i id="thirst-bar"></i></div>
+</article>
+</section>
+<div aria-live="polite" class="hud-notifications" id="hud-notifications"></div>
+<div aria-live="polite" class="hud-textui" id="hud-textui">
+<span class="hud-textui-icon" id="hud-textui-icon"></span>
+<span class="hud-textui-text" id="hud-textui-text"></span>
+</div>
+<section aria-label="Vehicle status" class="vehicle-panel glass is-hidden" data-i18n-aria="vehicle_status" id="vehicle-panel">
+<div aria-hidden="true" class="vehicle-accent"></div>
+<div class="speed-block">
+<span class="speed-label" data-i18n="speed">SPEED</span>
+<div class="speed-line">
+<strong id="speed-value">000</strong>
+<span class="speed-unit" id="speed-unit">KM/H</span>
+</div>
+</div>
+<div aria-label="Nitro: 0%" class="nitro-gauge is-empty" data-i18n-aria-template="nitro_percent" id="nitro-gauge">
+<svg aria-hidden="true" class="nitro-ring" viewbox="0 0 36 36">
+<circle class="nitro-ring-track" cx="18" cy="18" pathlength="100" r="15.9155"></circle>
+<circle class="nitro-ring-value" cx="18" cy="18" id="nitro-ring-value" pathlength="100" r="15.9155"></circle>
+</svg>
+<svg aria-hidden="true" class="nitro-icon" viewbox="0 0 24 24">
+<path d="M9 3h6v3l2 2v10a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V8l2-2V3Z"></path>
+<path d="m13 9-3 5h3l-2 4 4-6h-3l1-3Z"></path>
+</svg>
+<svg aria-hidden="true" class="seatbelt-icon" viewbox="0 0 24 24">
+<path d="M12 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm.39 12.79c1.64 0 3.07.1 4.25.25.06-2.72-.18-5.12-.64-6.04a3.2 3.2 0 0 0-.5-.7l-8.07 6.92c1.36-.22 3.07-.43 4.96-.43ZM7.46 17c.13 1.74.39 3.5.81 5h2.07c-.29-.88-.5-1.91-.66-3 0 0 2.32-.44 4.64 0-.16 1.09-.37 2.12-.66 3h2.07c.44-1.55.7-3.39.83-5.21-1.15-.14-2.56-.25-4.17-.25-1.93 0-3.61.21-4.93.46ZM12 7s-3 0-4 2c-.34.68-.56 2.15-.63 3.96l6.55-5.62C12.93 7 12 7 12 7Zm6.57-1.33-1.14-1.33-3.51 3.01c.55.19 1.13.49 1.58.95l3.07-2.63Zm2.1 10.16c-.09-.03-1.53-.5-4.03-.79-.01.57-.04 1.16-.08 1.75 2.25.28 3.54.71 3.56.71l.55-1.67ZM7.37 12.96l-3.94 3.38.89 1.48c.02-.01 1.18-.46 3.14-.82-.11-1.41-.14-2.8-.09-4.04Z"></path>
+</svg>
+</div>
+<div class="vehicle-divider"></div>
+<div class="gear-block">
+<span data-i18n="gear">GEAR</span>
+<strong class="gear-shell">
+<svg aria-hidden="true" class="gear-rpm-ring" viewbox="0 0 36 36">
+<circle class="gear-rpm-track" cx="18" cy="18" pathlength="100" r="15.9155"></circle>
+<circle class="gear-rpm-value" cx="18" cy="18" id="gear-rpm-value" pathlength="100" r="15.9155"></circle>
+</svg>
+<span class="gear-layer gear-previous" id="gear-previous"></span>
+<span class="gear-layer gear-current" id="gear-value">N</span>
+</strong>
+</div>
+<div class="vehicle-meters">
+<div class="meter-row fuel-row">
+<span data-i18n="fuel">FUEL</span>
+<div class="meter-track"><i id="fuel-bar"></i></div>
+<strong id="fuel-value">100</strong>
+</div>
+<div class="meter-row engine-row">
+<span data-i18n="engine">ENGINE</span>
+<div class="meter-track"><i id="engine-bar"></i></div>
+<strong id="engine-value">100</strong>
+</div>
+</div>
+</section>
+<section aria-label="Vehicle details" class="vehicle-detail-panel glass is-hidden" data-i18n-aria="vehicle_details" id="vehicle-detail-panel">
+<div class="vehicle-detail-row vehicle-detail-nitro" id="vehicle-detail-nitro">
+<span aria-hidden="true" class="vehicle-detail-icon">
+<svg viewbox="0 0 24 24"><path d="M9 3h6v3l2 2v10a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V8l2-2V3Z"></path><path d="m13 9-3 5h3l-2 4 4-6h-3l1-3Z"></path></svg>
+</span>
+<span class="vehicle-detail-copy"><small data-i18n="nitro_remaining">NITRO REMAINING</small><strong><span id="vehicle-detail-nitro-value">0</span>%</strong></span>
+</div>
+</section>
+</main>
+<div aria-hidden="true" class="hud-settings is-hidden" id="hud-settings">
+<button aria-label="Close settings" class="settings-backdrop" data-i18n-aria="close_settings" data-settings-close="" type="button"></button>
+<section aria-labelledby="settings-title" aria-modal="true" class="settings-dialog" role="dialog">
+<header class="settings-header">
+<div>
+<span class="settings-kicker" data-i18n="interface">INTERFACE</span>
+<h1 data-i18n="settings_title" id="settings-title">HUD Settings</h1>
+<p data-i18n="settings_description">Adjust the appearance to your play style.</p>
+</div>
+<button aria-label="Close settings" class="settings-close" data-i18n-aria="close_settings" data-settings-close="" type="button">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+</button>
+</header>
+<div class="settings-content">
+<button class="settings-row settings-toggle-row" id="settings-visibility" type="button">
+<span class="settings-icon settings-icon-cyan">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.7"></circle></svg>
+</span>
+<span class="settings-copy"><strong data-i18n="hud_visibility">HUD visibility</strong><small id="settings-visibility-label">Enabled</small></span>
+<span class="settings-switch" id="settings-visibility-switch"><i></i></span>
+</button>
+<button class="settings-row settings-toggle-row" id="settings-location" type="button">
+<span class="settings-icon settings-icon-cyan">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="m12 2 3 8-3 12-3-12 3-8Z"></path><path d="M4 12h5M15 12h5"></path></svg>
+</span>
+<span class="settings-copy"><strong data-i18n="location_visibility">Direction and area panel</strong><small data-i18n="location_visibility_description">Show the direction, street and area panel at the top center</small></span>
+<span class="settings-switch"><i></i></span>
+</button>
+<div class="settings-group">
+<div class="settings-group-title"><span data-i18n="display_mode">Display mode</span><small data-i18n="display_mode_description">Status panel behavior</small></div>
+<div aria-label="Display mode" class="settings-segments" data-i18n-aria="display_mode" role="group">
+<button class="settings-segment" data-settings-mode="normal" type="button">
+<strong data-i18n="normal">Normal</strong><span data-i18n="normal_description">Detailed panels</span>
+</button>
+<button class="settings-segment" data-settings-mode="minimal" type="button">
+<strong data-i18n="minimal">Minimal</strong><span data-i18n="minimal_description">Live color bars</span>
+</button>
+</div>
+</div>
+<div class="settings-group settings-palette-group">
+<div class="settings-group-title"><span data-i18n="palette_title">Color palette</span><small data-i18n="palette_description">HUD surfaces and accents; status and critical colors stay unchanged</small></div>
+<div aria-label="Color palette" class="settings-palettes" data-i18n-aria="palette_title" role="group">
+<button class="palette-choice" data-settings-palette="ocean" type="button"><span class="palette-swatch palette-swatch-ocean"><i></i><i></i><i></i></span><strong data-i18n="palette_ocean">Ocean</strong></button>
+<button class="palette-choice" data-settings-palette="emerald" type="button"><span class="palette-swatch palette-swatch-emerald"><i></i><i></i><i></i></span><strong data-i18n="palette_emerald">Emerald</strong></button>
+<button class="palette-choice" data-settings-palette="amethyst" type="button"><span class="palette-swatch palette-swatch-amethyst"><i></i><i></i><i></i></span><strong data-i18n="palette_amethyst">Amethyst</strong></button>
+<button class="palette-choice" data-settings-palette="amber" type="button"><span class="palette-swatch palette-swatch-amber"><i></i><i></i><i></i></span><strong data-i18n="palette_amber">Amber</strong></button>
+<button class="palette-choice" data-settings-palette="graphite" type="button"><span class="palette-swatch palette-swatch-graphite"><i></i><i></i><i></i></span><strong data-i18n="palette_graphite">Graphite</strong></button>
+<button class="palette-choice" data-settings-palette="ruby" type="button"><span class="palette-swatch palette-swatch-ruby"><i></i><i></i><i></i></span><strong data-i18n="palette_ruby">Ruby</strong></button>
+<button class="palette-choice" data-settings-palette="sakura" type="button"><span class="palette-swatch palette-swatch-sakura"><i></i><i></i><i></i></span><strong data-i18n="palette_sakura">Sakura</strong></button>
+<button class="palette-choice" data-settings-palette="frost" type="button"><span class="palette-swatch palette-swatch-frost"><i></i><i></i><i></i></span><strong data-i18n="palette_frost">Frost</strong></button>
+<button class="palette-choice" data-settings-palette="royal" type="button"><span class="palette-swatch palette-swatch-royal"><i></i><i></i><i></i></span><strong data-i18n="palette_royal">Royal</strong></button>
+<button class="palette-choice" data-settings-palette="lime" type="button"><span class="palette-swatch palette-swatch-lime"><i></i><i></i><i></i></span><strong data-i18n="palette_lime">Lime</strong></button>
+</div>
+</div>
+<div class="settings-group settings-opacity-group">
+<div class="settings-group-title"><span data-i18n="opacity_title">HUD transparency</span><small id="settings-opacity-value">85%</small></div>
+<label class="settings-opacity-control" for="settings-opacity">
+<input aria-label="HUD transparency" data-i18n-aria="opacity_title" id="settings-opacity" max="100" min="40" step="5" type="range" value="85"/>
+<span data-i18n="opacity_description">Lower values make the entire HUD more transparent</span>
+</label>
+</div>
+<div class="settings-group">
+<div class="settings-group-title"><span data-i18n="hud_position">HUD position</span><small data-i18n="hud_position_description">Identity and status area</small></div>
+<div aria-label="HUD position" class="settings-positions" data-i18n-aria="hud_position" role="group">
+<button class="position-choice" data-settings-position="top-right" type="button">
+<span class="position-preview position-preview-top-right"><i></i></span><strong data-i18n="top_right">Top right</strong>
+</button>
+<button class="position-choice" data-settings-position="top-left" type="button">
+<span class="position-preview position-preview-top-left"><i></i></span><strong data-i18n="top_left">Top left</strong>
+</button>
+<button class="position-choice" data-settings-position="bottom-right" type="button">
+<span class="position-preview position-preview-bottom-right"><i></i></span><strong data-i18n="bottom_right">Bottom right</strong>
+</button>
+</div>
+</div>
+<button class="settings-preview-button" id="settings-preview" type="button">
+<svg aria-hidden="true" viewbox="0 0 24 24"><path d="M8 5v14l11-7L8 5Z"></path></svg>
+<span><strong data-i18n="preview_panels">Preview panels</strong><small data-i18n="preview_description">Enables the HUD and shows details for five seconds</small></span>
+</button>
+</div>
+<footer class="settings-footer" data-i18n-html="close_hint"><span>ESC</span> or click outside to close</footer>
+</section>
+</div>
+<script src="app.js?v=153"></script>
+</body>
+</html>

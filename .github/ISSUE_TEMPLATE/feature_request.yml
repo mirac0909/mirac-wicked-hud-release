@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest an improvement for Mirac Wicked HUD
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What server-owner or player need would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the expected result and any configuration required.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: This request is specific to the HUD rather than a framework dependency.
+          required: true
+        - label: I searched existing issues for a similar request.
+          required: true

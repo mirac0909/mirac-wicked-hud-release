@@ -1,0 +1,11 @@
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+node_modules/
+cache/
+txData/
+.env
+.env.*
+release-assets/
+.demo-capture/

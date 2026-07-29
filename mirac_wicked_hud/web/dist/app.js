@@ -1,0 +1,1285 @@
+const app = document.getElementById('app');
+const vehiclePanel = document.getElementById('vehicle-panel');
+const vehicleDetailPanel = document.getElementById('vehicle-detail-panel');
+const hudNotifications = document.getElementById('hud-notifications');
+const hudTextUi = document.getElementById('hud-textui');
+const hudTextUiIcon = document.getElementById('hud-textui-icon');
+const hudTextUiText = document.getElementById('hud-textui-text');
+const identityPanel = document.getElementById('identity-panel');
+const minimapFrame = document.getElementById('minimap-frame');
+const settingsPanel = document.getElementById('hud-settings');
+const settingsVisibility = document.getElementById('settings-visibility');
+const settingsVisibilityLabel = document.getElementById('settings-visibility-label');
+const settingsLocation = document.getElementById('settings-location');
+const settingsPreview = document.getElementById('settings-preview');
+const settingsModeButtons = [...document.querySelectorAll('[data-settings-mode]')];
+const settingsPositionButtons = [...document.querySelectorAll('[data-settings-position]')];
+const settingsPaletteButtons = [...document.querySelectorAll('[data-settings-palette]')];
+const settingsOpacity = document.getElementById('settings-opacity');
+const settingsOpacityValue = document.getElementById('settings-opacity-value');
+const settingsCloseButtons = [...document.querySelectorAll('[data-settings-close]')];
+// Keep a changing status mounted until its value has genuinely settled.
+// This prevents repeated close/reopen motion around zero and during recovery.
+const STATUS_CHANGE_HOLD_MS = 2800;
+const STATUS_EXIT_MS = 320;
+const STATUS_EXIT_STAGGER_MS = 225;
+const MODE_SWITCH_MS = 220;
+const HUD_POSITION_CLASSES = ['hud-position-top-right', 'hud-position-top-left', 'hud-position-bottom-right'];
+const HUD_PALETTES = ['ocean', 'emerald', 'amethyst', 'amber', 'graphite', 'ruby', 'sakura', 'frost', 'royal', 'lime'];
+let vehicleMode = false;
+let vehicleRevealReady = false;
+let vehicleRevealDelayTimer = null;
+let vehicleExitTimer = null;
+let vehicleExiting = false;
+let showAllStatuses = false;
+let showAllExitTimer = null;
+let modeSwitching = false;
+let modeSwitchTimer = null;
+let vehicleEntryTimer = null;
+let activeHudPosition = '';
+let settingsRequestPending = false;
+const hudNotificationRecords = new Map();
+let hudSettingsState = {
+  enabled: true,
+  location: true,
+  minimal: false,
+  position: 'top-right',
+  palette: 'ocean',
+  opacity: 85,
+  notificationSafetyLimit: 100
+};
+
+const DEFAULT_HUD_STATE = {
+  health: 100,
+  armour: 0,
+  stamina: 100,
+  oxygen: false,
+  hunger: false,
+  thirst: false,
+  talking: false,
+  voiceMode: 2,
+  temporaryId: 0,
+  permanentId: '0',
+  time: '00:00',
+  compass: 'K',
+  street: '',
+  area: '',
+  showAllStatuses: false,
+  vehicle: false
+};
+
+let hudState = { ...DEFAULT_HUD_STATE };
+let hudConfig = {
+  minimalMode: false,
+  locationVisible: true,
+  hudPosition: 'top-right',
+  speedUnit: 'kmh',
+  components: {},
+  vehicleWarnings: { warningThreshold: 60, dangerThreshold: 35 },
+  vehicleDetails: { enabled: true },
+  identity: { serverLabel: 'OX', permanentIdMaxLength: 12 },
+  palette: 'ocean',
+  opacity: 85
+};
+let uiLocale = {
+  enabled: 'Enabled',
+  disabled: 'Disabled',
+  locating: 'Locating',
+  notification: 'Notification',
+  voice_mode_status: 'Voice mode: %s',
+  voice_mode_whisper: 'Whisper',
+  voice_mode_normal: 'Normal',
+  voice_mode_shout: 'Shout',
+  nitro_percent: 'Nitro: %s%'
+};
+
+function translate(key, value) {
+  const template = String(uiLocale[key] ?? key);
+  return value === undefined ? template : template.replace('%s', String(value));
+}
+
+const VOICE_MODE_KEYS = {
+  1: 'voice_mode_whisper',
+  2: 'voice_mode_normal',
+  3: 'voice_mode_shout'
+};
+
+function normalizeVoiceMode(value) {
+  const mode = Math.floor(Number(value));
+  return mode >= 1 && mode <= 3 ? mode : 2;
+}
+
+function setVoiceMode(value) {
+  const mode = normalizeVoiceMode(value);
+  const label = translate(VOICE_MODE_KEYS[mode]);
+  const description = translate('voice_mode_status', label);
+
+  fields.voice.dataset.voiceMode = String(mode);
+  fields.voice.setAttribute('title', description);
+  fields.voice.setAttribute('aria-label', description);
+  return mode;
+}
+
+function applyLocale(strings = {}, language) {
+  if (!strings || typeof strings !== 'object') return;
+  uiLocale = { ...uiLocale, ...strings };
+  if (typeof language === 'string' && language) document.documentElement.lang = language;
+
+  document.querySelectorAll('[data-i18n]').forEach((element) => {
+    const key = element.dataset.i18n;
+    if (uiLocale[key] !== undefined) element.textContent = translate(key);
+  });
+  document.querySelectorAll('[data-i18n-aria]').forEach((element) => {
+    const key = element.dataset.i18nAria;
+    if (uiLocale[key] !== undefined) element.setAttribute('aria-label', translate(key));
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach((element) => {
+    const key = element.dataset.i18nTitle;
+    if (uiLocale[key] !== undefined) element.setAttribute('title', translate(key));
+  });
+
+  const closeHint = document.querySelector('[data-i18n-html="close_hint"]');
+  if (closeHint && uiLocale.close_hint !== undefined) {
+    const hint = translate('close_hint').replace(/^ESC\s*/i, '');
+    closeHint.innerHTML = `<span>ESC</span> ${hint}`;
+  }
+
+  settingsVisibilityLabel.textContent = translate(hudSettingsState.enabled ? 'enabled' : 'disabled');
+  if (!hudState.street) fields.street.textContent = translate('locating');
+  setVoiceMode(hudState.voiceMode);
+  if (vehicleUi.nitroGauge.classList.contains('is-seatbelt')) {
+    vehicleUi.nitroGauge.setAttribute(
+      'aria-label',
+      translate(vehicleUi.nitroGauge.classList.contains('is-unbuckled') ? 'seatbelt_off' : 'seatbelt_on')
+    );
+  } else {
+    vehicleUi.nitroGauge.setAttribute('aria-label', translate('nitro_percent', lastNitroValue ?? 0));
+  }
+}
+
+function setComponentVisible(element, visible) {
+  if (!element) return;
+  element.classList.toggle('is-component-disabled', visible === false);
+}
+
+function applyConfig(config = {}) {
+  if (!config || typeof config !== 'object') return;
+  hudConfig = {
+    ...hudConfig,
+    ...config,
+    components: { ...hudConfig.components, ...(config.components || {}) }
+  };
+
+  if (Object.hasOwn(config, 'minimalMode')) setMinimalMode(Boolean(config.minimalMode));
+  if (Object.hasOwn(config, 'hudPosition')) setHudPosition(config.hudPosition);
+  if (Object.hasOwn(config, 'palette')) setHudPalette(config.palette);
+  if (Object.hasOwn(config, 'opacity')) setHudOpacity(config.opacity);
+  if (config.identity && Object.hasOwn(config.identity, 'serverLabel')) {
+    fields.serverLabel.textContent = String(config.identity.serverLabel || 'OX').slice(0, 12);
+  }
+
+  const unit = hudConfig.speedUnit === 'mph' ? 'MPH' : 'KM/H';
+  const speedUnit = document.getElementById('speed-unit');
+  if (speedUnit) speedUnit.textContent = unit;
+
+  const safeZone = hudConfig.safeZone && typeof hudConfig.safeZone === 'object' ? hudConfig.safeZone : {};
+  const safeX = Math.min(10, Math.max(0, Number(safeZone.x) || 0));
+  const safeY = Math.min(10, Math.max(0, Number(safeZone.y) || 0));
+  document.documentElement.style.setProperty('--safe-zone-x', `${safeX}vw`);
+  document.documentElement.style.setProperty('--safe-zone-y', `${safeY}vh`);
+
+  const components = hudConfig.components;
+  setComponentVisible(document.getElementById('identity-panel'), components.identity);
+  setComponentVisible(
+    document.getElementById('location-panel'),
+    components.location !== false && hudConfig.locationVisible !== false
+  );
+  setComponentVisible(document.getElementById('status-dock'), components.statuses);
+  setComponentVisible(document.querySelector('.identity-summary'), components.statuses);
+  setComponentVisible(document.getElementById('vehicle-panel'), components.vehicle);
+  setComponentVisible(vehicleDetailPanel, components.vehicle && hudConfig.vehicleDetails?.enabled !== false);
+  setComponentVisible(document.getElementById('voice'), components.voice);
+  setComponentVisible(document.getElementById('minimap-frame'), components.minimap);
+}
+
+const fields = {
+  serverLabel: document.getElementById('server-label'),
+  serverId: document.getElementById('server-id'),
+  temporaryId: document.getElementById('temporary-id'),
+  permanentId: document.getElementById('permanent-id'),
+  time: document.getElementById('game-time'),
+  voice: document.getElementById('voice'),
+  compass: document.getElementById('compass'),
+  street: document.getElementById('street'),
+  area: document.getElementById('area'),
+  speed: document.getElementById('speed-value'),
+  gear: document.getElementById('gear-value'),
+  fuel: document.getElementById('fuel-value'),
+  engine: document.getElementById('engine-value')
+};
+
+const vehicleUi = {
+  gearPrevious: document.getElementById('gear-previous'),
+  gearRpmRing: document.getElementById('gear-rpm-value'),
+  gearShell: document.querySelector('.gear-shell'),
+  fuelBar: document.getElementById('fuel-bar'),
+  engineBar: document.getElementById('engine-bar'),
+  nitroGauge: document.getElementById('nitro-gauge'),
+  nitroRing: document.getElementById('nitro-ring-value'),
+  detailNitro: document.getElementById('vehicle-detail-nitro'),
+  detailNitroValue: document.getElementById('vehicle-detail-nitro-value')
+};
+
+let lastNitroValue = null;
+let nitroChangeTimer = null;
+let nitroEmptyAttemptAnimation = null;
+let nitroEmptyAttemptTimer = null;
+
+const statuses = {
+  health: {
+    value: document.getElementById('health-value'),
+    bar: document.getElementById('health-bar'),
+    summary: document.getElementById('summary-health'),
+    card: document.querySelector('[data-status="health"]')
+  },
+  armour: {
+    value: document.getElementById('armour-value'),
+    bar: document.getElementById('armour-bar'),
+    summary: document.getElementById('summary-armour'),
+    card: document.querySelector('[data-status="armour"]')
+  },
+  stamina: {
+    value: document.getElementById('stamina-value'),
+    bar: document.getElementById('stamina-bar'),
+    summary: document.getElementById('summary-stamina'),
+    card: document.querySelector('[data-status="stamina"]')
+  },
+  oxygen: {
+    value: document.getElementById('oxygen-value'),
+    bar: document.getElementById('oxygen-bar'),
+    summary: null,
+    card: document.getElementById('oxygen-card'),
+    optional: true
+  },
+  hunger: {
+    value: document.getElementById('hunger-value'),
+    bar: document.getElementById('hunger-bar'),
+    summary: document.getElementById('summary-hunger'),
+    card: document.getElementById('hunger-card'),
+    optional: true
+  },
+  thirst: {
+    value: document.getElementById('thirst-value'),
+    bar: document.getElementById('thirst-bar'),
+    summary: document.getElementById('summary-thirst'),
+    card: document.getElementById('thirst-card'),
+    optional: true
+  }
+};
+
+const STATUS_ORDER = ['health', 'armour', 'stamina', 'oxygen', 'hunger', 'thirst'];
+const identityStatusCard = document.querySelector('.status-identity-ids');
+const CRITICAL_INDICATOR_PULSE_MS = 1450;
+let statusAnchorFrame = null;
+let lastAdaptiveStatusLayout = '';
+
+function primeCriticalIndicatorPhase(card) {
+  if (!card) return;
+  const phase = performance.now() % CRITICAL_INDICATOR_PULSE_MS;
+  card.style.setProperty('--critical-pulse-delay', `${-phase}ms`);
+}
+
+function syncCriticalStatusState() {
+  const hasCriticalStatus = STATUS_ORDER.some((name) => {
+    const card = statuses[name]?.card;
+    return card
+      && !card.classList.contains('is-hidden')
+      && card.classList.contains('is-critical');
+  });
+
+  app.classList.toggle('has-critical-status', hasCriticalStatus);
+}
+
+function getOpenStatusCards() {
+  const isMinimalCollapsed = app.classList.contains('is-minimal')
+    && !showAllStatuses
+    && !app.classList.contains('is-status-exiting');
+
+  if (isMinimalCollapsed && !app.classList.contains('has-critical-status')) return [];
+
+  const revealAll = showAllStatuses || app.classList.contains('is-status-exiting');
+
+  const cards = STATUS_ORDER
+    .map((name) => statuses[name].card)
+    .filter((card) => !card.classList.contains('is-hidden'))
+    .filter((card) => revealAll
+      || card.classList.contains('is-critical')
+      || card.classList.contains('is-changing')
+      || card.classList.contains('is-leaving'));
+
+  if (revealAll && identityStatusCard) cards.push(identityStatusCard);
+  return cards;
+}
+
+function assignStatusAnimationDelays() {
+  const cards = getOpenStatusCards();
+  const lastIndex = cards.length - 1;
+  const step = lastIndex > 0 ? STATUS_EXIT_STAGGER_MS / lastIndex : 0;
+
+  cards.forEach((card, index) => {
+    card.style.setProperty('--deploy-delay', `${Math.round(index * step)}ms`);
+    card.style.setProperty('--exit-delay', `${Math.round((lastIndex - index) * step)}ms`);
+  });
+}
+
+function reportAdaptiveStatusLayout() {
+  const identity = document.querySelector('.identity-panel');
+  if (!identity) return;
+
+  const identityRect = identity.getBoundingClientRect();
+  const openCards = getOpenStatusCards();
+  const notificationRects = [...document.querySelectorAll('.hud-notification')]
+    .map((card) => card.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0);
+  const cardRects = openCards
+    .map((card) => card.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0);
+  const sideOffset = !app.classList.contains('is-vehicle') && notificationRects.length
+    ? Math.ceil(Math.max(...notificationRects.map((rect) => rect.width)) + 7)
+    : 0;
+  const top = cardRects.length
+    ? Math.min(...cardRects.map((rect) => rect.top))
+    : identityRect.top;
+  const bottom = cardRects.length
+    ? Math.max(...cardRects.map((rect) => rect.bottom))
+    : identityRect.bottom;
+  const payload = {
+    activeCount: cardRects.length,
+    bottomOffset: Math.max(0, Math.round(window.innerHeight - top + 7)),
+    topOffset: Math.max(0, Math.round(bottom + 7)),
+    sideOffset
+  };
+  const serialized = JSON.stringify(payload);
+
+  if (serialized === lastAdaptiveStatusLayout) return;
+  lastAdaptiveStatusLayout = serialized;
+
+  fetch(`https://${GetParentResourceName()}/hudStatusLayout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+    body: serialized
+  }).catch(() => {});
+}
+
+function syncTopStatusAnchor() {
+  statusAnchorFrame = null;
+  reportAdaptiveStatusLayout();
+  syncTransientAnchors();
+
+  const topStatusName = STATUS_ORDER.find((name) => {
+    const card = statuses[name].card;
+    const style = window.getComputedStyle(card);
+    return !card.classList.contains('is-hidden') && style.display !== 'none' && style.visibility !== 'hidden';
+  });
+
+  STATUS_ORDER.forEach((name) => {
+    statuses[name].card.classList.toggle('is-top-status', name === topStatusName);
+  });
+
+  if (!topStatusName) return;
+
+  const status = statuses[topStatusName];
+  const segment = status.summary?.parentElement;
+  if (!segment) return;
+
+  const cardRect = status.card.getBoundingClientRect();
+  const segmentRect = segment.getBoundingClientRect();
+  if (!cardRect.width || !segmentRect.width) return;
+
+  const scaledOffset = segmentRect.left + (segmentRect.width / 2) - cardRect.left;
+  const anchor = (scaledOffset / cardRect.width) * status.card.offsetWidth;
+  const safeAnchor = Math.min(status.card.offsetWidth - 12, Math.max(12, anchor));
+  status.card.style.setProperty('--status-anchor-x', `${safeAnchor.toFixed(2)}px`);
+}
+
+function syncTransientAnchors() {
+  const gap = 7;
+
+  if (app.classList.contains('is-vehicle')) {
+    const mapRect = minimapFrame?.getBoundingClientRect();
+    const vehicleRect = vehiclePanel?.getBoundingClientRect();
+    const detailIsVisible = app.classList.contains('is-peeking')
+      && !app.classList.contains('is-panels-hidden')
+      && vehicleDetailPanel?.classList.contains('has-nitro')
+      && !vehicleDetailPanel.classList.contains('is-hidden')
+      && !vehicleDetailPanel.classList.contains('is-component-disabled');
+    const detailRect = detailIsVisible
+      ? vehicleDetailPanel.getBoundingClientRect()
+      : null;
+
+    if (mapRect?.width) {
+      app.style.setProperty('--vehicle-notification-left', `${mapRect.left.toFixed(2)}px`);
+      app.style.setProperty('--vehicle-notification-bottom', `${(window.innerHeight - mapRect.top + gap).toFixed(2)}px`);
+      app.style.setProperty('--vehicle-notification-width', `${mapRect.width.toFixed(2)}px`);
+    }
+
+    if (vehicleRect?.width) {
+      app.style.setProperty('--vehicle-textui-left', `${vehicleRect.left.toFixed(2)}px`);
+      const textUiAnchorTop = detailRect?.height > 0 ? detailRect.top : vehicleRect.top;
+      app.style.setProperty('--vehicle-textui-bottom', `${(window.innerHeight - textUiAnchorTop + gap).toFixed(2)}px`);
+      app.style.setProperty('--vehicle-textui-width', `${vehicleRect.width.toFixed(2)}px`);
+    }
+    return;
+  }
+
+  const identityRect = identityPanel?.getBoundingClientRect();
+  if (!identityRect?.width) return;
+  const statusRects = getOpenStatusCards()
+    .map((card) => card.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0);
+  const groupRects = [identityRect, ...statusRects];
+  const referenceRect = statusRects[0] || identityRect;
+
+  app.style.setProperty('--ped-textui-left', `${referenceRect.left.toFixed(2)}px`);
+  app.style.setProperty('--ped-textui-width', `${referenceRect.width.toFixed(2)}px`);
+  if (app.classList.contains('hud-position-bottom-right')) {
+    app.style.setProperty('--ped-textui-top', 'auto');
+    const groupTop = Math.min(...groupRects.map((rect) => rect.top));
+    const textUiBottom = window.innerHeight - groupTop + gap;
+    app.style.setProperty('--ped-textui-bottom', `${textUiBottom.toFixed(2)}px`);
+    const notificationBottom = hudTextUi?.classList.contains('is-visible')
+      ? textUiBottom + hudTextUi.getBoundingClientRect().height + gap
+      : textUiBottom;
+    app.style.setProperty('--ped-notification-top', 'auto');
+    app.style.setProperty('--ped-notification-bottom', `${notificationBottom.toFixed(2)}px`);
+  } else {
+    const groupBottom = Math.max(...groupRects.map((rect) => rect.bottom));
+    const textUiTop = groupBottom + gap;
+    app.style.setProperty('--ped-textui-top', `${textUiTop.toFixed(2)}px`);
+    app.style.setProperty('--ped-textui-bottom', 'auto');
+    const notificationTop = hudTextUi?.classList.contains('is-visible')
+      ? textUiTop + hudTextUi.getBoundingClientRect().height + gap
+      : textUiTop;
+    app.style.setProperty('--ped-notification-top', `${notificationTop.toFixed(2)}px`);
+    app.style.setProperty('--ped-notification-bottom', 'auto');
+  }
+  app.style.setProperty('--ped-notification-left', `${referenceRect.left.toFixed(2)}px`);
+  app.style.setProperty('--ped-notification-width', `${referenceRect.width.toFixed(2)}px`);
+}
+
+function scheduleTopStatusAnchor() {
+  if (statusAnchorFrame !== null) return;
+  statusAnchorFrame = window.requestAnimationFrame(syncTopStatusAnchor);
+}
+
+const statusAnchorObserver = new MutationObserver(scheduleTopStatusAnchor);
+statusAnchorObserver.observe(app, {
+  subtree: true,
+  attributes: true,
+  attributeFilter: ['class']
+});
+window.addEventListener('resize', () => {
+  scheduleTopStatusAnchor();
+  refreshMarquees();
+});
+const transientAnchorObserver = new ResizeObserver(scheduleTopStatusAnchor);
+[identityPanel, minimapFrame, vehiclePanel, vehicleDetailPanel, hudTextUi].forEach((element) => {
+  if (element) transientAnchorObserver.observe(element);
+});
+
+function clamp(value) {
+  return Math.min(100, Math.max(0, Number(value) || 0));
+}
+
+function numericId(value, maximumLength) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  return digits.slice(0, Math.max(1, Number(maximumLength) || 12)) || '0';
+}
+
+function mergeState(target, patch) {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return patch;
+  const base = target && typeof target === 'object' && !Array.isArray(target) ? target : {};
+  const result = { ...base };
+
+  Object.entries(patch).forEach(([key, value]) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      result[key] = mergeState(base[key], value);
+    } else {
+      result[key] = value;
+    }
+  });
+
+  return result;
+}
+
+function setVisible(state) {
+  const visibility = typeof state === 'object'
+    ? state
+    : { panelsVisible: Boolean(state), notificationsVisible: Boolean(state), textUiVisible: Boolean(state) };
+  const panelsVisible = Boolean(visibility.panelsVisible ?? visibility.visible);
+  const notificationsVisible = Boolean(visibility.notificationsVisible ?? panelsVisible);
+  const textUiVisible = Boolean(visibility.textUiVisible ?? panelsVisible);
+  app.classList.toggle('is-panels-hidden', !panelsVisible);
+  app.classList.toggle('are-notifications-hidden', !notificationsVisible);
+  app.classList.toggle('is-textui-hidden', !textUiVisible);
+  app.classList.toggle('is-transient-hidden', !notificationsVisible && !textUiVisible);
+  app.setAttribute('aria-hidden', panelsVisible || notificationsVisible || textUiVisible ? 'false' : 'true');
+}
+
+function renderHudSettings(state = {}) {
+  hudSettingsState = {
+    enabled: state.enabled !== false,
+    location: state.location !== false,
+    minimal: Boolean(state.minimal),
+    position: ['top-left', 'bottom-right'].includes(state.position) ? state.position : 'top-right',
+    palette: HUD_PALETTES.includes(state.palette) ? state.palette : 'ocean',
+    opacity: normalizeHudOpacity(state.opacity)
+  };
+
+  settingsVisibility.classList.toggle('is-active', hudSettingsState.enabled);
+  settingsVisibility.setAttribute('aria-pressed', hudSettingsState.enabled ? 'true' : 'false');
+  settingsVisibilityLabel.textContent = translate(hudSettingsState.enabled ? 'enabled' : 'disabled');
+
+  settingsLocation.classList.toggle('is-active', hudSettingsState.location);
+  settingsLocation.setAttribute('aria-pressed', hudSettingsState.location ? 'true' : 'false');
+
+  const activeMode = hudSettingsState.minimal ? 'minimal' : 'normal';
+  settingsModeButtons.forEach((button) => {
+    const active = button.dataset.settingsMode === activeMode;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+
+  settingsPositionButtons.forEach((button) => {
+    const active = button.dataset.settingsPosition === hudSettingsState.position;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+
+  settingsPaletteButtons.forEach((button) => {
+    const active = button.dataset.settingsPalette === hudSettingsState.palette;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+
+  if (settingsOpacity) settingsOpacity.value = String(hudSettingsState.opacity);
+  if (settingsOpacityValue) settingsOpacityValue.textContent = `${hudSettingsState.opacity}%`;
+
+  setHudPalette(hudSettingsState.palette);
+  setHudOpacity(hudSettingsState.opacity);
+}
+
+function setSettingsVisible(open, state) {
+  if (state) renderHudSettings(state);
+  settingsPanel.classList.toggle('is-hidden', !open);
+  settingsPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+}
+
+async function sendSettingsAction(action, value) {
+  if (settingsRequestPending) return;
+  settingsRequestPending = true;
+  settingsPanel.classList.add('is-busy');
+
+  try {
+    const response = await fetch(`https://${GetParentResourceName()}/hudSettingsAction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+      body: JSON.stringify({ action, value })
+    });
+    const result = await response.json();
+    if (result?.state) renderHudSettings(result.state);
+  } catch (error) {
+    console.warn('HUD settings action failed', error);
+  } finally {
+    settingsRequestPending = false;
+    settingsPanel.classList.remove('is-busy');
+  }
+}
+
+function setMinimalMode(enabled) {
+  app.classList.toggle('is-minimal', enabled);
+  setShowAllStatuses(!enabled);
+  scheduleTopStatusAnchor();
+}
+
+function setHudPalette(palette) {
+  const safePalette = HUD_PALETTES.includes(palette) ? palette : 'ocean';
+  document.documentElement.dataset.hudPalette = safePalette;
+}
+
+function normalizeHudOpacity(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 85;
+  return Math.round(Math.min(100, Math.max(40, number)) / 5) * 5;
+}
+
+function setHudOpacity(value) {
+  const opacity = normalizeHudOpacity(value);
+  document.documentElement.style.setProperty('--hud-opacity', (opacity / 100).toFixed(2));
+  return opacity;
+}
+
+function setHudPosition(position) {
+  const safePosition = ['top-left', 'bottom-right'].includes(position) ? position : 'top-right';
+  if (activeHudPosition === safePosition) return;
+  HUD_POSITION_CLASSES.forEach((className) => app.classList.remove(className));
+  app.classList.add(`hud-position-${safePosition}`);
+  activeHudPosition = safePosition;
+  scheduleTopStatusAnchor();
+}
+
+function clearTransientStatusRows() {
+  Object.values(statuses).forEach((status) => {
+    window.clearTimeout(status.changeTimer);
+    window.clearTimeout(status.exitTimer);
+    status.changeTimer = null;
+    status.exitTimer = null;
+    status.card.classList.remove('is-changing', 'is-leaving');
+  });
+}
+
+function beginStatusExit(status) {
+  window.clearTimeout(status.exitTimer);
+  status.card.classList.add('is-leaving');
+  status.exitTimer = window.setTimeout(() => {
+    status.card.classList.remove('is-leaving');
+    status.exitTimer = null;
+  }, STATUS_EXIT_MS);
+}
+
+function setShowAllStatuses(visible) {
+  if (visible) {
+    window.clearTimeout(showAllExitTimer);
+    showAllExitTimer = null;
+    app.classList.remove('is-status-exiting');
+    app.classList.add('show-status-values');
+    showAllStatuses = true;
+    assignStatusAnimationDelays();
+    return;
+  }
+
+  if (!showAllStatuses) return;
+
+  app.classList.remove('show-status-values');
+  app.classList.add('is-status-exiting');
+  showAllStatuses = false;
+  assignStatusAnimationDelays();
+  window.clearTimeout(showAllExitTimer);
+  showAllExitTimer = window.setTimeout(() => {
+    app.classList.remove('is-status-exiting');
+    showAllExitTimer = null;
+  }, STATUS_EXIT_MS + STATUS_EXIT_STAGGER_MS);
+}
+
+function updateStatus(name, rawValue, trackChanges = true) {
+  const status = statuses[name];
+  if (!status) return;
+
+  if (status.optional && (rawValue === false || rawValue === null || rawValue === undefined)) {
+    window.clearTimeout(status.changeTimer);
+    window.clearTimeout(status.exitTimer);
+    window.clearTimeout(status.dropTimer);
+    status.changeTimer = null;
+    status.exitTimer = null;
+    status.dropTimer = null;
+    status.card.classList.add('is-hidden');
+    status.card.classList.remove('is-changing', 'is-leaving', 'is-critical');
+    status.card.style.removeProperty('--critical-pulse-delay');
+    status.summary?.parentElement?.classList.add('is-hidden');
+    status.summary?.parentElement?.classList.remove('is-critical', 'is-dropping', 'is-empty');
+    status.lastValue = undefined;
+    syncCriticalStatusState();
+    return;
+  }
+
+  const value = Math.round(clamp(rawValue));
+  const previousValue = status.lastValue;
+  const wasCritical = status.card.classList.contains('is-critical');
+  const isCritical = value <= 50 && !(name === 'armour' && value === 0);
+  const shouldTrackTransientChange = trackChanges && app.classList.contains('is-minimal');
+
+  if (isCritical && !wasCritical) {
+    primeCriticalIndicatorPhase(status.card);
+  }
+
+  if (shouldTrackTransientChange && Number.isFinite(status.lastValue) && status.lastValue !== value) {
+    window.clearTimeout(status.exitTimer);
+    status.exitTimer = null;
+    status.card.classList.remove('is-leaving');
+    status.card.classList.add('is-changing');
+    window.clearTimeout(status.changeTimer);
+    status.changeTimer = window.setTimeout(() => {
+      status.card.classList.remove('is-changing');
+      status.changeTimer = null;
+      if (!status.card.classList.contains('is-critical') && !showAllStatuses) {
+        beginStatusExit(status);
+      }
+    }, STATUS_CHANGE_HOLD_MS);
+  } else if (!shouldTrackTransientChange) {
+    window.clearTimeout(status.changeTimer);
+    window.clearTimeout(status.exitTimer);
+    status.changeTimer = null;
+    status.exitTimer = null;
+    status.card.classList.remove('is-changing', 'is-leaving');
+  }
+
+  status.lastValue = value;
+  status.card.classList.remove('is-hidden');
+  status.summary?.parentElement?.classList.remove('is-hidden');
+  status.card.classList.toggle('is-critical', isCritical);
+  status.summary?.parentElement?.classList.toggle('is-critical', isCritical);
+  status.summary?.parentElement?.classList.toggle('is-empty', value === 0);
+  syncCriticalStatusState();
+
+  if (app.classList.contains('is-minimal') && Number.isFinite(previousValue) && value < previousValue && !status.dropTimer) {
+    status.summary?.parentElement?.classList.add('is-dropping');
+    status.dropTimer = window.setTimeout(() => {
+      status.summary?.parentElement?.classList.remove('is-dropping');
+      status.dropTimer = null;
+    }, 360);
+  }
+
+  status.card.style.setProperty('--arc', `${Math.round(value * 2.6)}deg`);
+  status.value.textContent = value;
+  status.bar.style.width = `${value}%`;
+  status.summary.style.setProperty('--summary-progress', (value / 100).toFixed(2));
+  if (name === 'stamina') status.summary.style.width = `${value}%`;
+  status.summary.style.opacity = '1';
+  status.summary.parentElement?.setAttribute('aria-valuenow', String(value));
+}
+
+function setVehicleGear(nextGear) {
+  const gear = String(nextGear || 'N');
+  const currentGear = fields.gear.textContent || 'N';
+  if (gear === currentGear) return;
+
+  const gearRank = (value) => {
+    if (value === 'R') return -1;
+    if (value === 'N') return 0;
+    return Number(value) || 0;
+  };
+  const isUpshift = gearRank(gear) > gearRank(currentGear);
+
+  vehicleUi.gearPrevious.textContent = currentGear;
+  vehicleUi.gearPrevious.classList.remove('is-leaving-left', 'is-leaving-right');
+  fields.gear.classList.remove('is-entering-right', 'is-entering-left');
+  void fields.gear.offsetWidth;
+
+  fields.gear.textContent = gear;
+  vehicleUi.gearPrevious.classList.add(isUpshift ? 'is-leaving-left' : 'is-leaving-right');
+  fields.gear.classList.add(isUpshift ? 'is-entering-right' : 'is-entering-left');
+}
+
+function setVehicleRpm(value) {
+  const rpm = Math.round(clamp(value));
+  vehicleUi.gearRpmRing.style.strokeDashoffset = String(100 - rpm);
+  vehicleUi.gearShell.classList.toggle('is-rpm-high', rpm >= 72 && rpm < 90);
+  vehicleUi.gearShell.classList.toggle('is-rpm-redline', rpm >= 90);
+}
+
+function setVehicleMeter(bar, value) {
+  const warningThreshold = Number(hudConfig.vehicleWarnings?.warningThreshold) || 60;
+  const dangerThreshold = Number(hudConfig.vehicleWarnings?.dangerThreshold) || 35;
+  bar.style.width = `${value}%`;
+  bar.classList.toggle('is-warning', value <= warningThreshold && value > dangerThreshold);
+  bar.classList.toggle('is-danger', value <= dangerThreshold);
+}
+
+function setVehicleNitro(value, animate = true) {
+  const nitro = Math.round(clamp(value));
+  vehicleUi.nitroRing.style.strokeDashoffset = String(100 - nitro);
+  vehicleUi.nitroGauge.setAttribute('aria-label', translate('nitro_percent', nitro));
+  vehicleUi.nitroGauge.classList.toggle('is-low', nitro > 10 && nitro <= 35);
+  vehicleUi.nitroGauge.classList.toggle('is-critical', nitro <= 10);
+
+  if (animate && lastNitroValue !== null && nitro !== lastNitroValue) {
+    vehicleUi.nitroGauge.classList.add('is-changing');
+    window.clearTimeout(nitroChangeTimer);
+    nitroChangeTimer = window.setTimeout(() => {
+      vehicleUi.nitroGauge.classList.remove('is-changing');
+    }, 520);
+  }
+  lastNitroValue = nitro;
+}
+
+function animateEmptyNitroAttempt() {
+  if (!vehicleMode || lastNitroValue === null || lastNitroValue > 0
+      || vehicleUi.nitroGauge.classList.contains('is-seatbelt')) return;
+
+  nitroEmptyAttemptAnimation?.cancel();
+  window.clearTimeout(nitroEmptyAttemptTimer);
+  vehicleUi.nitroGauge.classList.remove('is-empty-attempt');
+  void vehicleUi.nitroGauge.offsetWidth;
+  vehicleUi.nitroGauge.classList.add('is-empty-attempt');
+
+  nitroEmptyAttemptAnimation = vehicleUi.nitroRing.animate([
+    { strokeDashoffset: '100' },
+    { strokeDashoffset: '0', offset: 0.38 },
+    { strokeDashoffset: '100' }
+  ], {
+    duration: 900,
+    easing: 'ease-in-out'
+  });
+
+  nitroEmptyAttemptTimer = window.setTimeout(() => {
+    vehicleUi.nitroGauge.classList.remove('is-empty-attempt');
+    nitroEmptyAttemptAnimation = null;
+  }, 900);
+}
+
+function setVehicleSafety(nitroValue, seatbelt, seatbeltAvailable = true) {
+  const hasNitro = nitroValue !== false && nitroValue !== null && nitroValue !== undefined;
+  vehicleUi.nitroGauge.classList.toggle('is-safety-hidden', !hasNitro && !seatbeltAvailable);
+  vehicleUi.nitroGauge.classList.toggle('is-seatbelt', !hasNitro);
+  vehicleUi.nitroGauge.classList.toggle('is-unbuckled', !hasNitro && seatbelt !== true);
+
+  if (hasNitro) {
+    setVehicleNitro(nitroValue);
+    return;
+  }
+
+  window.clearTimeout(nitroChangeTimer);
+  vehicleUi.nitroGauge.classList.remove('is-changing', 'is-low', 'is-critical');
+  vehicleUi.nitroGauge.setAttribute('aria-label', translate(seatbelt === true ? 'seatbelt_on' : 'seatbelt_off'));
+  lastNitroValue = null;
+}
+
+function updateVehicle(vehicle) {
+  const nextVehicleMode = Boolean(vehicle);
+
+  if (nextVehicleMode && vehicleExiting) {
+    window.clearTimeout(vehicleExitTimer);
+    vehicleExitTimer = null;
+    vehicleExiting = false;
+    app.classList.remove('is-vehicle-exiting');
+  }
+
+  if (!nextVehicleMode && vehicleMode) {
+    if (!vehicleExiting) {
+      vehicleExiting = true;
+      window.clearTimeout(vehicleRevealDelayTimer);
+      window.clearTimeout(vehicleEntryTimer);
+      vehicleRevealDelayTimer = null;
+      vehicleEntryTimer = null;
+      app.classList.remove('is-vehicle-reveal-pending', 'is-vehicle-entering');
+      app.classList.add('is-vehicle-exiting');
+      vehicleExitTimer = window.setTimeout(() => {
+        vehicleExitTimer = null;
+        vehicleExiting = false;
+        vehicleMode = false;
+        vehicleRevealReady = false;
+        app.classList.remove('is-vehicle', 'is-vehicle-exiting');
+        vehiclePanel.classList.add('is-hidden');
+        vehicleDetailPanel.classList.add('is-hidden');
+        scheduleTopStatusAnchor();
+      }, 780);
+    }
+    return false;
+  }
+
+  const modeChanged = nextVehicleMode !== vehicleMode;
+
+  if (modeChanged) {
+    clearTransientStatusRows();
+    window.clearTimeout(showAllExitTimer);
+    window.clearTimeout(modeSwitchTimer);
+    window.clearTimeout(vehicleEntryTimer);
+    window.clearTimeout(vehicleRevealDelayTimer);
+    window.clearTimeout(vehicleExitTimer);
+    vehicleExitTimer = null;
+    vehicleExiting = false;
+    showAllExitTimer = null;
+    showAllStatuses = false;
+    modeSwitching = true;
+    app.classList.remove('show-status-values', 'is-status-exiting');
+    app.classList.add('is-mode-switching');
+    modeSwitchTimer = window.setTimeout(() => {
+      modeSwitching = false;
+      modeSwitchTimer = null;
+      app.classList.remove('is-mode-switching');
+    }, MODE_SWITCH_MS);
+  }
+
+  vehicleMode = nextVehicleMode;
+  app.classList.toggle('is-vehicle', nextVehicleMode);
+
+  if (modeChanged) {
+    app.classList.remove('is-vehicle-entering', 'is-vehicle-reveal-pending');
+    if (nextVehicleMode) {
+      vehicleRevealReady = false;
+      app.classList.add('is-vehicle-reveal-pending');
+      vehicleRevealDelayTimer = window.setTimeout(() => {
+        vehicleRevealReady = true;
+        vehicleRevealDelayTimer = null;
+        app.classList.add('is-vehicle-entering');
+        vehiclePanel.classList.remove('is-hidden');
+        vehicleDetailPanel.classList.remove('is-hidden');
+        app.classList.remove('is-vehicle-reveal-pending');
+        vehicleEntryTimer = window.setTimeout(() => {
+          app.classList.remove('is-vehicle-entering');
+          vehicleEntryTimer = null;
+        }, 900);
+      }, 450);
+    } else {
+      vehicleRevealReady = false;
+      vehicleRevealDelayTimer = null;
+      vehicleEntryTimer = null;
+    }
+  }
+
+  if (!vehicle || !vehicleRevealReady) {
+    vehiclePanel.classList.add('is-hidden');
+    vehicleDetailPanel.classList.add('is-hidden');
+    lastNitroValue = null;
+    window.clearTimeout(nitroChangeTimer);
+    vehicleUi.nitroGauge.classList.remove('is-changing');
+    return modeChanged;
+  }
+
+  vehiclePanel.classList.remove('is-hidden');
+  vehicleDetailPanel.classList.remove('is-hidden');
+
+  const fuel = Math.round(clamp(vehicle.fuel));
+  const engine = Math.round(clamp(vehicle.engine));
+  const hasNitro = vehicle.nitro !== false && vehicle.nitro !== null && vehicle.nitro !== undefined;
+
+  fields.speed.textContent = String(Math.max(0, Math.round(vehicle.speed || 0))).padStart(3, '0');
+  setVehicleGear(vehicle.gear || 'N');
+  setVehicleRpm(vehicle.rpm);
+  fields.fuel.textContent = fuel;
+  fields.engine.textContent = engine;
+  vehicleUi.detailNitro.classList.toggle('is-hidden', !hasNitro);
+  vehicleDetailPanel.classList.toggle('has-nitro', hasNitro);
+  vehicleUi.detailNitroValue.textContent = String(hasNitro ? Math.round(clamp(vehicle.nitro)) : 0);
+  setVehicleMeter(vehicleUi.fuelBar, fuel);
+  setVehicleMeter(vehicleUi.engineBar, engine);
+  setVehicleSafety(vehicle.nitro, vehicle.seatbelt, vehicle.seatbeltAvailable);
+  return modeChanged;
+}
+
+function update(patch) {
+  if (!patch || typeof patch !== 'object') return;
+  hudState = mergeState(hudState, patch);
+
+  if (Object.hasOwn(patch, 'visible')) setVisible(patch.visible !== false);
+  if (Object.hasOwn(patch, 'hudPosition')) setHudPosition(patch.hudPosition);
+
+  let modeChanged = false;
+  if (Object.hasOwn(patch, 'vehicle')) modeChanged = updateVehicle(hudState.vehicle);
+  if (Object.hasOwn(patch, 'minimalMode')) setMinimalMode(Boolean(patch.minimalMode));
+  if (Object.hasOwn(patch, 'showAllStatuses')) {
+    app.classList.toggle('is-peeking', Boolean(patch.showAllStatuses) && !modeSwitching);
+    const normalMode = !app.classList.contains('is-minimal');
+    setShowAllStatuses(normalMode || (Boolean(patch.showAllStatuses) && !modeSwitching));
+  }
+
+  if (Object.hasOwn(patch, 'health')) updateStatus('health', patch.health, !modeChanged);
+  if (Object.hasOwn(patch, 'armour')) updateStatus('armour', patch.armour, !modeChanged);
+  if (Object.hasOwn(patch, 'stamina')) updateStatus('stamina', patch.stamina, !modeChanged);
+  if (Object.hasOwn(patch, 'oxygen')) updateStatus('oxygen', patch.oxygen, !modeChanged);
+  if (Object.hasOwn(patch, 'hunger')) updateStatus('hunger', patch.hunger, !modeChanged);
+  if (Object.hasOwn(patch, 'thirst')) updateStatus('thirst', patch.thirst, !modeChanged);
+
+  if (Object.hasOwn(patch, 'temporaryId') || Object.hasOwn(patch, 'serverId')) {
+    const temporaryId = numericId(patch.temporaryId ?? patch.serverId, 10);
+    fields.serverId.textContent = temporaryId;
+    fields.temporaryId.textContent = temporaryId;
+  }
+  if (Object.hasOwn(patch, 'permanentId')) {
+    fields.permanentId.textContent = numericId(patch.permanentId, hudConfig.identity?.permanentIdMaxLength);
+  }
+  if (Object.hasOwn(patch, 'time')) fields.time.textContent = patch.time || '00:00';
+  if (Object.hasOwn(patch, 'compass')) fields.compass.textContent = patch.compass || 'K';
+  if (Object.hasOwn(patch, 'street')) fields.street.textContent = patch.street || translate('locating');
+  if (Object.hasOwn(patch, 'area')) fields.area.textContent = patch.area || '';
+  if (Object.hasOwn(patch, 'talking')) fields.voice.classList.toggle('is-talking', Boolean(patch.talking));
+  if (Object.hasOwn(patch, 'voiceMode')) {
+    hudState.voiceMode = setVoiceMode(patch.voiceMode);
+  }
+
+  scheduleTopStatusAnchor();
+}
+
+
+settingsVisibility.addEventListener('click', () => sendSettingsAction('toggleVisibility'));
+settingsLocation.addEventListener('click', () => sendSettingsAction('toggleLocation'));
+
+settingsModeButtons.forEach((button) => {
+  button.addEventListener('click', () => sendSettingsAction('setMode', button.dataset.settingsMode));
+});
+
+settingsPositionButtons.forEach((button) => {
+  button.addEventListener('click', () => sendSettingsAction('setPosition', button.dataset.settingsPosition));
+});
+
+settingsPaletteButtons.forEach((button) => {
+  button.addEventListener('click', () => sendSettingsAction('setPalette', button.dataset.settingsPalette));
+});
+
+if (settingsOpacity) {
+  settingsOpacity.addEventListener('input', () => {
+    const opacity = setHudOpacity(settingsOpacity.value);
+    if (settingsOpacityValue) settingsOpacityValue.textContent = `${opacity}%`;
+  });
+
+  settingsOpacity.addEventListener('change', () => {
+    sendSettingsAction('setOpacity', normalizeHudOpacity(settingsOpacity.value));
+  });
+}
+
+settingsPreview.addEventListener('click', () => sendSettingsAction('preview'));
+settingsCloseButtons.forEach((button) => {
+  button.addEventListener('click', () => sendSettingsAction('close'));
+});
+
+window.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || settingsPanel.classList.contains('is-hidden')) return;
+  event.preventDefault();
+  sendSettingsAction('close');
+});
+
+const notificationGlyphs = {
+  error: '×',
+  warning: '!',
+  success: '✓',
+  inform: 'i',
+  info: 'i'
+};
+
+const iconGlyphs = {
+  'circle-info': 'i',
+  'circle-check': '✓',
+  'triangle-exclamation': '!',
+  'circle-xmark': '×',
+  hand: 'E'
+};
+
+function updateMarquee(element) {
+  if (!element) return;
+  element.classList.remove('is-marquee');
+  element.style.removeProperty('--marquee-distance');
+  element.style.removeProperty('--marquee-duration');
+
+  requestAnimationFrame(() => {
+    if (!element.isConnected) return;
+    const overflow = Math.ceil(element.scrollWidth - element.clientWidth);
+    if (overflow <= 2) return;
+
+    const distance = overflow + 14;
+    const duration = Math.max(5.5, Math.min(14, distance / 24 + 3.2));
+    element.style.setProperty('--marquee-distance', `${distance}px`);
+    element.style.setProperty('--marquee-duration', `${duration.toFixed(2)}s`);
+    element.classList.add('is-marquee');
+  });
+}
+
+function refreshMarquees() {
+  hudNotificationRecords.forEach((record) => {
+    updateMarquee(record.title);
+    updateMarquee(record.description);
+  });
+  if (hudTextUi?.classList.contains('is-visible')) updateMarquee(hudTextUiText);
+}
+
+function removeHudNotification(key, immediate = false) {
+  const record = hudNotificationRecords.get(String(key));
+  if (!record) return;
+  window.clearTimeout(record.timer);
+  hudNotificationRecords.delete(String(key));
+  const finish = () => {
+    record.card.remove();
+    if (!hudNotificationRecords.size) app.classList.remove('has-hud-notifications');
+    scheduleTopStatusAnchor();
+  };
+  if (immediate) finish();
+  else {
+    record.title.classList.remove('is-marquee');
+    record.description.classList.remove('is-marquee');
+    record.card.classList.remove('is-visible');
+    record.card.classList.add('is-leaving');
+    window.setTimeout(finish, STATUS_EXIT_MS);
+  }
+}
+
+function showHudNotification(raw = {}) {
+  if (!hudNotifications) return;
+  const key = String(raw.key || raw.id || `anonymous-${Date.now()}-${Math.random()}`);
+  const existing = hudNotificationRecords.get(key);
+  const requestedType = String(raw.type || 'inform').toLowerCase();
+  const type = Object.hasOwn(notificationGlyphs, requestedType) ? requestedType : 'inform';
+  const record = existing || {};
+  const card = record.card || document.createElement('article');
+  const icon = record.icon || document.createElement('div');
+  const copy = record.copy || document.createElement('div');
+  const title = record.title || document.createElement('strong');
+  const description = record.description || document.createElement('span');
+
+  card.className = `hud-notification hud-notification-${type}${existing ? ' is-visible' : ''}`;
+  card.dataset.notificationId = key;
+  icon.className = 'hud-notification-icon';
+  icon.textContent = iconGlyphs[String(raw.icon)] || notificationGlyphs[type];
+  icon.style.color = /^#[0-9a-f]{6}$/i.test(String(raw.iconColor || '')) ? raw.iconColor : '';
+  copy.className = 'hud-notification-copy';
+  title.textContent = String(raw.title || translate('notification'));
+  description.textContent = String(raw.description || '');
+
+  if (!existing) {
+    copy.append(title, description);
+    card.append(icon, copy);
+    hudNotifications.prepend(card);
+  }
+  app.classList.add('has-hud-notifications');
+
+  const duration = Math.min(60000, Math.max(250, Number(raw.duration) || 5000));
+  const deadline = existing && !raw.restartDuration ? existing.deadline : Date.now() + duration;
+  window.clearTimeout(existing?.timer);
+  Object.assign(record, { card, icon, copy, title, description, deadline });
+  record.timer = window.setTimeout(() => removeHudNotification(key), Math.max(0, deadline - Date.now()));
+  hudNotificationRecords.set(key, record);
+  if (!existing) requestAnimationFrame(() => card.classList.add('is-visible'));
+  updateMarquee(title);
+  updateMarquee(description);
+
+  const safetyLimit = Math.min(500, Math.max(10, Number(hudConfig.notificationSafetyLimit) || 100));
+  while (hudNotificationRecords.size > safetyLimit) {
+    const oldest = hudNotifications.lastElementChild;
+    if (!oldest) break;
+    removeHudNotification(oldest.dataset.notificationId, true);
+  }
+  scheduleTopStatusAnchor();
+}
+
+function resetHudNotifications() {
+  hudNotificationRecords.forEach((record) => window.clearTimeout(record.timer));
+  hudNotificationRecords.clear();
+  if (hudNotifications) hudNotifications.replaceChildren();
+  app.classList.remove('has-hud-notifications');
+  scheduleTopStatusAnchor();
+}
+
+function showHudTextUi(raw = {}) {
+  if (!hudTextUi) return;
+  const visible = raw.visible === true;
+  hudTextUi.classList.toggle('is-visible', visible);
+  hudTextUiIcon.textContent = iconGlyphs[String(raw.icon)] || iconGlyphs.hand;
+  const iconColor = /^#[0-9a-f]{6}$/i.test(String(raw.iconColor || '')) ? raw.iconColor : 'var(--theme-accent)';
+  hudTextUi.style.setProperty('--textui-color', iconColor);
+  hudTextUiIcon.style.color = '';
+  hudTextUiText.textContent = String(raw.text || '');
+  if (visible) updateMarquee(hudTextUiText);
+  else hudTextUiText.classList.remove('is-marquee');
+}
+
+const activeVehicleSounds = new Set();
+
+function playVehicleSound(raw = {}) {
+  const file = String(raw.file || '');
+  if (!/^sounds\/[a-z0-9._/-]+\.(ogg|mp3|wav)$/i.test(file) || file.includes('..')) return;
+
+  const audio = new Audio(file);
+  audio.volume = Math.min(1, Math.max(0, Number(raw.volume) || 0));
+  activeVehicleSounds.add(audio);
+
+  const release = () => activeVehicleSounds.delete(audio);
+  audio.addEventListener('ended', release, { once: true });
+  audio.addEventListener('error', release, { once: true });
+  audio.play().catch(release);
+}
+
+window.addEventListener('message', (event) => {
+  const payload = event.data;
+  if (!payload || typeof payload !== 'object') return;
+
+  const data = payload.data && typeof payload.data === 'object' ? payload.data : {};
+
+  if (payload.action === 'hud:notification:add' || payload.action === 'hud:notification:update'
+      || payload.action === 'hud:notification' || payload.action === 'hudNotification') {
+    showHudNotification(data);
+    return;
+  }
+  if (payload.action === 'hud:notification:remove') {
+    removeHudNotification(data.key || data.id);
+    return;
+  }
+  if (payload.action === 'hud:notification:reset') {
+    resetHudNotifications();
+    return;
+  }
+  if (payload.action === 'hud:textui') {
+    showHudTextUi(data);
+    return;
+  }
+  if (payload.action === 'hud:vehicleSound') {
+    playVehicleSound(data);
+    return;
+  }
+  if (payload.action === 'hud:nitroEmptyAttempt') {
+    animateEmptyNitroAttempt();
+    return;
+  }
+
+  if (payload.action === 'hud:visibility' || payload.action === 'visibility') {
+    setVisible({ ...data, visible: data.visible ?? payload.visible });
+    return;
+  }
+
+  if (payload.action === 'hud:locale') {
+    applyLocale(data.strings, data.language);
+    return;
+  }
+
+  if (payload.action === 'hud:config') {
+    applyConfig(data);
+    return;
+  }
+
+  if (payload.action === 'hud:settings' || payload.action === 'settings') {
+    setSettingsVisible(Boolean(data.open ?? payload.open), data.state ?? payload.data);
+    return;
+  }
+
+  if (payload.action === 'hud:reset') {
+    activeVehicleSounds.forEach((audio) => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+    activeVehicleSounds.clear();
+    resetHudNotifications();
+    hudState = { ...DEFAULT_HUD_STATE };
+    setVoiceMode(DEFAULT_HUD_STATE.voiceMode);
+    app.classList.remove('has-critical-status');
+    setVisible({ panelsVisible: false, notificationsVisible: false, textUiVisible: false });
+    showHudTextUi({ visible: false });
+    setSettingsVisible(false);
+    updateVehicle(false);
+    return;
+  }
+
+  if (payload.action === 'minimalMode') {
+    setMinimalMode(Boolean(payload.enabled));
+    return;
+  }
+
+  if (payload.action === 'position') {
+    setHudPosition(payload.position);
+    return;
+  }
+
+  if ((payload.action === 'hud:update' || payload.action === 'update') && data) {
+    update(data);
+  }
+});
+
+async function signalHudReady() {
+  try {
+    await fetch(`https://${GetParentResourceName()}/hudReady`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+      body: '{}'
+    });
+  } catch (error) {
+    window.setTimeout(signalHudReady, 500);
+  }
+}
+
+window.requestAnimationFrame(signalHudReady);
