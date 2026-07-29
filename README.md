@@ -16,7 +16,7 @@ bridges so server owners can configure integrations without editing the NUI.
 
 ## Preview
 
-<!-- Add the YouTube demo link here before publishing. -->
+[Watch the complete Mirac Wicked HUD demo on YouTube](https://youtu.be/0BhiHlxuI8k)
 
 ## Highlights
 
