@@ -1,4 +1,4 @@
-# Mirac Wicked HUD
+# Mirac Wicked HUD FiveM Enhanced
 
 > **Project note:** This is not a serious or commercial project. It was made
 > casually in my spare time as a personal experiment and shared as-is.
