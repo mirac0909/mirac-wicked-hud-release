@@ -14,6 +14,10 @@ handling, voice indicators, themes, notifications, TextUI and a complete
 in-game settings interface. Framework-specific behavior is isolated behind
 bridges so server owners can configure integrations without editing the NUI.
 
+> **Development platform:** The entire project was developed and tested on
+> **GTA V Enhanced**. GTA V Enhanced is the primary supported and validated
+> game version for this release.
+
 ## Preview
 
 [Watch the complete Mirac Wicked HUD demo on YouTube](https://youtu.be/0BhiHlxuI8k)
