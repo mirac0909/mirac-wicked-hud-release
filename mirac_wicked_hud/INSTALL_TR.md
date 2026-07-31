@@ -1,6 +1,6 @@
 # Mirac Wicked HUD Kurulum
 
-Bu belge Mirac Wicked HUD `1.3.0` içindir.
+Bu belge Mirac Wicked HUD `1.3.1` içindir.
 
 ## 1. Gereksinimler
 

@@ -8,7 +8,7 @@ saklar ve GTAV Legacy ile GTAV Enhanced ses sistemlerini destekler.
 ## Dağıtım bilgisi
 
 - Resource klasörü: `mirac_wicked_hud`
-- Sürüm: `1.3.0`
+- Sürüm: `1.3.1`
 - Lisans: MIT
 - Doğrulanan geliştirme tabanı: qbx_core 1.23.0, ox_lib 3.39.0
 
