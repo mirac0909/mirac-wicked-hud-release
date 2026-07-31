@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.1 — 2026-07-31
+
+- Reduced repeated NUI messages, DOM writes and layout calculations.
+- Reused player and vehicle statebag reads in high-frequency update paths.
+- Restored cached HUD state after NUI page reloads and bounded the pending
+  notification queue.
+- Hardened settings callbacks and server callback cooldown handling.
+- Removed redundant runtime and browser code while preserving framework,
+  voice, fuel, notification and legacy NUI compatibility.
+
 ## 1.3.0 — 2026-07-29
 
 - Added interaction-aware ownership for the shared nitro and seatbelt
