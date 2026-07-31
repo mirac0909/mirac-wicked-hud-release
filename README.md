@@ -10,7 +10,7 @@
 [![FiveM](https://img.shields.io/badge/FiveM-Cerulean-f40552)](https://fivem.net/)
 [![Framework](https://img.shields.io/badge/Framework-Qbox-4f46e5)](https://github.com/Qbox-project/qbx_core)
 [![Dependency](https://img.shields.io/badge/Dependency-ox__lib-22c55e)](https://github.com/overextended/ox_lib)
-[![Version](https://img.shields.io/badge/version-1.3.1-2563eb)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.3.0-2563eb)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-0f172a)](LICENSE)
 
 A modern, configurable and open-source FiveM HUD built for Qbox and a
