@@ -38,6 +38,10 @@ bridges so server owners can configure integrations without editing the NUI.
     <td><img src="assets/screenshots/vehicle-speed-rpm.jpg" alt="Vehicle speed, gear and RPM HUD"></td>
     <td><img src="assets/screenshots/vehicle-critical-status.jpg" alt="Vehicle HUD with critical status values"></td>
   </tr>
+  <tr>
+    <td><img src="assets/screenshots/race-hud-nitro-active.jpg" alt="Race vehicle HUD with active nitro effects"></td>
+    <td><img src="assets/screenshots/race-hud-rpm-warning.jpg" alt="Race vehicle HUD with high RPM warning colors"></td>
+  </tr>
 </table>
 
 ## Highlights
