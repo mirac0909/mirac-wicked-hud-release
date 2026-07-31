@@ -14,6 +14,20 @@ local function post(payload)
     SendNUIMessage(payload)
 end
 
+local function queueNotification(payload)
+    local configuredLimit = type(Config.Notifications) == 'table'
+        and Config.Notifications.hardSafetyLimit
+        or 100
+    local maximum = Hud.clamp(configuredLimit, 10, 500) or 100
+    maximum = math.floor(maximum)
+
+    if #queuedNotifications >= maximum then
+        table.remove(queuedNotifications, 1)
+    end
+
+    queuedNotifications[#queuedNotifications + 1] = payload
+end
+
 local function diffAndMerge(target, patch, force)
     local changes = {}
     local changed = false
@@ -43,10 +57,6 @@ function Hud.isNuiReady()
     return nuiReady
 end
 
-function Hud.getNuiState()
-    return Hud.copy(stateCache)
-end
-
 function Hud.sendNuiUpdate(patch, force)
     if type(patch) ~= 'table' then return false end
 
@@ -72,7 +82,7 @@ function Hud.sendNui(action, data, force)
         if nuiReady then
             post(payload)
         else
-            queuedNotifications[#queuedNotifications + 1] = payload
+            queueNotification(payload)
         end
         return true
     end
@@ -110,6 +120,18 @@ function Hud.resetNui()
 end
 
 function Hud.setNuiReady()
+    -- A NUI page can reload without restarting the Lua runtime. Rebuild the
+    -- pending set from the persistent message cache so the new page receives
+    -- locale, config, visibility, settings and TextUI state again.
+    if nuiReady then
+        for action, data in pairs(messageCache) do
+            pendingMessages[action] = {
+                action = action,
+                data = Hud.copy(data)
+            }
+        end
+    end
+
     nuiReady = true
 
     local orderedActions = {
