@@ -1,6 +1,6 @@
 # Mirac Wicked HUD Installation
 
-This document applies to Mirac Wicked HUD `1.3.0`.
+This document applies to Mirac Wicked HUD `1.4.0-beta.1`.
 
 ## 1. Requirements
 

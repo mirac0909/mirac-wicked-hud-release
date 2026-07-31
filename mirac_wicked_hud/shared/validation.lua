@@ -432,6 +432,7 @@ function Hud.validateSharedConfig()
         if type(Config.DefaultSettings.enabled) ~= 'boolean' then add('Config.DefaultSettings.enabled') end
         if type(Config.DefaultSettings.location) ~= 'boolean' then add('Config.DefaultSettings.location') end
         if type(Config.DefaultSettings.minimal) ~= 'boolean' then add('Config.DefaultSettings.minimal') end
+        if type(Config.DefaultSettings.raceMode) ~= 'boolean' then add('Config.DefaultSettings.raceMode') end
         if not Hud.isPosition(Config.DefaultSettings.position) then add('Config.DefaultSettings.position') end
         if type(Config.DefaultSettings.palette) ~= 'string' or not Hud.palettes[Config.DefaultSettings.palette] then
             add('Config.DefaultSettings.palette')

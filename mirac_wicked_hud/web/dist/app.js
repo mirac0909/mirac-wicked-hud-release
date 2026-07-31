@@ -6,13 +6,19 @@ const hudTextUi = document.getElementById('hud-textui');
 const hudTextUiIcon = document.getElementById('hud-textui-icon');
 const hudTextUiText = document.getElementById('hud-textui-text');
 const identityPanel = document.getElementById('identity-panel');
+const locationPanel = document.getElementById('location-panel');
+const statusDock = document.getElementById('status-dock');
+const identitySummary = document.querySelector('.identity-summary');
 const minimapFrame = document.getElementById('minimap-frame');
+const voiceIndicator = document.getElementById('voice');
+const speedUnitLabel = document.getElementById('speed-unit');
 const settingsPanel = document.getElementById('hud-settings');
 const settingsVisibility = document.getElementById('settings-visibility');
 const settingsVisibilityLabel = document.getElementById('settings-visibility-label');
 const settingsLocation = document.getElementById('settings-location');
 const settingsPreview = document.getElementById('settings-preview');
 const settingsModeButtons = [...document.querySelectorAll('[data-settings-mode]')];
+const settingsVehicleModeButtons = [...document.querySelectorAll('[data-settings-vehicle-mode]')];
 const settingsPositionButtons = [...document.querySelectorAll('[data-settings-position]')];
 const settingsPaletteButtons = [...document.querySelectorAll('[data-settings-palette]')];
 const settingsOpacity = document.getElementById('settings-opacity');
@@ -24,6 +30,9 @@ const STATUS_CHANGE_HOLD_MS = 2800;
 const STATUS_EXIT_MS = 320;
 const STATUS_EXIT_STAGGER_MS = 225;
 const MODE_SWITCH_MS = 220;
+const RACE_MODE_SWITCH_OUT_MS = 150;
+const RACE_MODE_SWITCH_IN_MS = 260;
+const VEHICLE_CRASH_EFFECT_MS = 820;
 const HUD_POSITION_CLASSES = ['hud-position-top-right', 'hud-position-top-left', 'hud-position-bottom-right'];
 const HUD_PALETTES = ['ocean', 'emerald', 'amethyst', 'amber', 'graphite', 'ruby', 'sakura', 'frost', 'royal', 'lime'];
 let vehicleMode = false;
@@ -37,12 +46,19 @@ let modeSwitching = false;
 let modeSwitchTimer = null;
 let vehicleEntryTimer = null;
 let activeHudPosition = '';
+let activeHudPalette = '';
+let activeRaceMode = null;
+let raceModeSwitchTimer = null;
+let vehicleCrashEffectTimer = null;
 let settingsRequestPending = false;
+const rootStyleCache = new Map();
+const appStyleCache = new Map();
 const hudNotificationRecords = new Map();
 let hudSettingsState = {
   enabled: true,
   location: true,
   minimal: false,
+  raceMode: false,
   position: 'top-right',
   palette: 'ocean',
   opacity: 100,
@@ -71,6 +87,7 @@ const DEFAULT_HUD_STATE = {
 let hudState = { ...DEFAULT_HUD_STATE };
 let hudConfig = {
   minimalMode: false,
+  raceMode: false,
   locationVisible: true,
   hudPosition: 'top-right',
   speedUnit: 'kmh',
@@ -155,11 +172,18 @@ function applyLocale(strings = {}, language) {
   } else {
     vehicleUi.nitroGauge.setAttribute('aria-label', translate('nitro_percent', lastNitroValue ?? 0));
   }
+  renderRaceSeatbelt();
 }
 
 function setComponentVisible(element, visible) {
   if (!element) return;
   element.classList.toggle('is-component-disabled', visible === false);
+}
+
+function setCachedStyle(element, cache, property, value) {
+  if (!element || cache.get(property) === value) return;
+  cache.set(property, value);
+  element.style.setProperty(property, value);
 }
 
 function applyConfig(config = {}) {
@@ -171,6 +195,7 @@ function applyConfig(config = {}) {
   };
 
   if (Object.hasOwn(config, 'minimalMode')) setMinimalMode(Boolean(config.minimalMode));
+  if (Object.hasOwn(config, 'raceMode')) setVehicleRaceMode(Boolean(config.raceMode));
   if (Object.hasOwn(config, 'hudPosition')) setHudPosition(config.hudPosition);
   if (Object.hasOwn(config, 'palette')) setHudPalette(config.palette);
   if (Object.hasOwn(config, 'opacity')) setHudOpacity(config.opacity);
@@ -179,27 +204,26 @@ function applyConfig(config = {}) {
   }
 
   const unit = hudConfig.speedUnit === 'mph' ? 'MPH' : 'KM/H';
-  const speedUnit = document.getElementById('speed-unit');
-  if (speedUnit) speedUnit.textContent = unit;
+  if (speedUnitLabel) speedUnitLabel.textContent = unit;
 
   const safeZone = hudConfig.safeZone && typeof hudConfig.safeZone === 'object' ? hudConfig.safeZone : {};
   const safeX = Math.min(10, Math.max(0, Number(safeZone.x) || 0));
   const safeY = Math.min(10, Math.max(0, Number(safeZone.y) || 0));
-  document.documentElement.style.setProperty('--safe-zone-x', `${safeX}vw`);
-  document.documentElement.style.setProperty('--safe-zone-y', `${safeY}vh`);
+  setCachedStyle(document.documentElement, rootStyleCache, '--safe-zone-x', `${safeX}vw`);
+  setCachedStyle(document.documentElement, rootStyleCache, '--safe-zone-y', `${safeY}vh`);
 
   const components = hudConfig.components;
-  setComponentVisible(document.getElementById('identity-panel'), components.identity);
+  setComponentVisible(identityPanel, components.identity);
   setComponentVisible(
-    document.getElementById('location-panel'),
+    locationPanel,
     components.location !== false && hudConfig.locationVisible !== false
   );
-  setComponentVisible(document.getElementById('status-dock'), components.statuses);
-  setComponentVisible(document.querySelector('.identity-summary'), components.statuses);
-  setComponentVisible(document.getElementById('vehicle-panel'), components.vehicle);
+  setComponentVisible(statusDock, components.statuses);
+  setComponentVisible(identitySummary, components.statuses);
+  setComponentVisible(vehiclePanel, components.vehicle);
   setComponentVisible(vehicleDetailPanel, components.vehicle && hudConfig.vehicleDetails?.enabled !== false);
-  setComponentVisible(document.getElementById('voice'), components.voice);
-  setComponentVisible(document.getElementById('minimap-frame'), components.minimap);
+  setComponentVisible(voiceIndicator, components.voice);
+  setComponentVisible(minimapFrame, components.minimap);
 }
 
 const fields = {
@@ -208,7 +232,7 @@ const fields = {
   temporaryId: document.getElementById('temporary-id'),
   permanentId: document.getElementById('permanent-id'),
   time: document.getElementById('game-time'),
-  voice: document.getElementById('voice'),
+  voice: voiceIndicator,
   compass: document.getElementById('compass'),
   street: document.getElementById('street'),
   area: document.getElementById('area'),
@@ -221,11 +245,15 @@ const fields = {
 const vehicleUi = {
   gearPrevious: document.getElementById('gear-previous'),
   gearRpmRing: document.getElementById('gear-rpm-value'),
+  raceRpmBar: document.getElementById('race-rpm-bar'),
   gearShell: document.querySelector('.gear-shell'),
   fuelBar: document.getElementById('fuel-bar'),
   engineBar: document.getElementById('engine-bar'),
+  fuelArc: document.getElementById('fuel-arc-value'),
+  engineArc: document.getElementById('engine-arc-value'),
   nitroGauge: document.getElementById('nitro-gauge'),
   nitroRing: document.getElementById('nitro-ring-value'),
+  raceSeatbelt: document.getElementById('race-seatbelt-light'),
   detailNitro: document.getElementById('vehicle-detail-nitro'),
   detailNitroValue: document.getElementById('vehicle-detail-nitro-value')
 };
@@ -235,6 +263,7 @@ let nitroChangeTimer = null;
 let nitroEmptyAttemptAnimation = null;
 let nitroEmptyAttemptTimer = null;
 let safetySlotTimer = null;
+let safetySlotTransitionTimer = null;
 let safetySlotOwner = null;
 let lastSeatbeltState = null;
 let lastNitroActive = false;
@@ -249,6 +278,7 @@ let vehicleSafetyState = {
 const NITRO_SLOT_HOLD_MS = 1600;
 const BUCKLED_SLOT_HOLD_MS = 1100;
 const EMPTY_NITRO_SLOT_HOLD_MS = 950;
+const SAFETY_SLOT_SWITCH_MS = 330;
 
 const statuses = {
   health: {
@@ -296,7 +326,6 @@ const STATUS_ORDER = ['health', 'armour', 'stamina', 'oxygen', 'hunger', 'thirst
 const identityStatusCard = document.querySelector('.status-identity-ids');
 const CRITICAL_INDICATOR_PULSE_MS = 1450;
 let statusAnchorFrame = null;
-let lastAdaptiveStatusLayout = '';
 
 function primeCriticalIndicatorPhase(card) {
   if (!card) return;
@@ -347,48 +376,8 @@ function assignStatusAnimationDelays() {
   });
 }
 
-function reportAdaptiveStatusLayout() {
-  const identity = document.querySelector('.identity-panel');
-  if (!identity) return;
-
-  const identityRect = identity.getBoundingClientRect();
-  const openCards = getOpenStatusCards();
-  const notificationRects = [...document.querySelectorAll('.hud-notification')]
-    .map((card) => card.getBoundingClientRect())
-    .filter((rect) => rect.width > 0 && rect.height > 0);
-  const cardRects = openCards
-    .map((card) => card.getBoundingClientRect())
-    .filter((rect) => rect.width > 0 && rect.height > 0);
-  const sideOffset = !app.classList.contains('is-vehicle') && notificationRects.length
-    ? Math.ceil(Math.max(...notificationRects.map((rect) => rect.width)) + 7)
-    : 0;
-  const top = cardRects.length
-    ? Math.min(...cardRects.map((rect) => rect.top))
-    : identityRect.top;
-  const bottom = cardRects.length
-    ? Math.max(...cardRects.map((rect) => rect.bottom))
-    : identityRect.bottom;
-  const payload = {
-    activeCount: cardRects.length,
-    bottomOffset: Math.max(0, Math.round(window.innerHeight - top + 7)),
-    topOffset: Math.max(0, Math.round(bottom + 7)),
-    sideOffset
-  };
-  const serialized = JSON.stringify(payload);
-
-  if (serialized === lastAdaptiveStatusLayout) return;
-  lastAdaptiveStatusLayout = serialized;
-
-  fetch(`https://${GetParentResourceName()}/hudStatusLayout`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-    body: serialized
-  }).catch(() => {});
-}
-
 function syncTopStatusAnchor() {
   statusAnchorFrame = null;
-  reportAdaptiveStatusLayout();
   syncTransientAnchors();
 
   const topStatusName = STATUS_ORDER.find((name) => {
@@ -433,16 +422,16 @@ function syncTransientAnchors() {
       : null;
 
     if (mapRect?.width) {
-      app.style.setProperty('--vehicle-notification-left', `${mapRect.left.toFixed(2)}px`);
-      app.style.setProperty('--vehicle-notification-bottom', `${(window.innerHeight - mapRect.top + gap).toFixed(2)}px`);
-      app.style.setProperty('--vehicle-notification-width', `${mapRect.width.toFixed(2)}px`);
+      setCachedStyle(app, appStyleCache, '--vehicle-notification-left', `${mapRect.left.toFixed(2)}px`);
+      setCachedStyle(app, appStyleCache, '--vehicle-notification-bottom', `${(window.innerHeight - mapRect.top + gap).toFixed(2)}px`);
+      setCachedStyle(app, appStyleCache, '--vehicle-notification-width', `${mapRect.width.toFixed(2)}px`);
     }
 
     if (vehicleRect?.width) {
-      app.style.setProperty('--vehicle-textui-left', `${vehicleRect.left.toFixed(2)}px`);
+      setCachedStyle(app, appStyleCache, '--vehicle-textui-left', `${vehicleRect.left.toFixed(2)}px`);
       const textUiAnchorTop = detailRect?.height > 0 ? detailRect.top : vehicleRect.top;
-      app.style.setProperty('--vehicle-textui-bottom', `${(window.innerHeight - textUiAnchorTop + gap).toFixed(2)}px`);
-      app.style.setProperty('--vehicle-textui-width', `${vehicleRect.width.toFixed(2)}px`);
+      setCachedStyle(app, appStyleCache, '--vehicle-textui-bottom', `${(window.innerHeight - textUiAnchorTop + gap).toFixed(2)}px`);
+      setCachedStyle(app, appStyleCache, '--vehicle-textui-width', `${vehicleRect.width.toFixed(2)}px`);
     }
     return;
   }
@@ -455,31 +444,31 @@ function syncTransientAnchors() {
   const groupRects = [identityRect, ...statusRects];
   const referenceRect = statusRects[0] || identityRect;
 
-  app.style.setProperty('--ped-textui-left', `${referenceRect.left.toFixed(2)}px`);
-  app.style.setProperty('--ped-textui-width', `${referenceRect.width.toFixed(2)}px`);
+  setCachedStyle(app, appStyleCache, '--ped-textui-left', `${referenceRect.left.toFixed(2)}px`);
+  setCachedStyle(app, appStyleCache, '--ped-textui-width', `${referenceRect.width.toFixed(2)}px`);
   if (app.classList.contains('hud-position-bottom-right')) {
-    app.style.setProperty('--ped-textui-top', 'auto');
+    setCachedStyle(app, appStyleCache, '--ped-textui-top', 'auto');
     const groupTop = Math.min(...groupRects.map((rect) => rect.top));
     const textUiBottom = window.innerHeight - groupTop + gap;
-    app.style.setProperty('--ped-textui-bottom', `${textUiBottom.toFixed(2)}px`);
+    setCachedStyle(app, appStyleCache, '--ped-textui-bottom', `${textUiBottom.toFixed(2)}px`);
     const notificationBottom = hudTextUi?.classList.contains('is-visible')
       ? textUiBottom + hudTextUi.getBoundingClientRect().height + gap
       : textUiBottom;
-    app.style.setProperty('--ped-notification-top', 'auto');
-    app.style.setProperty('--ped-notification-bottom', `${notificationBottom.toFixed(2)}px`);
+    setCachedStyle(app, appStyleCache, '--ped-notification-top', 'auto');
+    setCachedStyle(app, appStyleCache, '--ped-notification-bottom', `${notificationBottom.toFixed(2)}px`);
   } else {
     const groupBottom = Math.max(...groupRects.map((rect) => rect.bottom));
     const textUiTop = groupBottom + gap;
-    app.style.setProperty('--ped-textui-top', `${textUiTop.toFixed(2)}px`);
-    app.style.setProperty('--ped-textui-bottom', 'auto');
+    setCachedStyle(app, appStyleCache, '--ped-textui-top', `${textUiTop.toFixed(2)}px`);
+    setCachedStyle(app, appStyleCache, '--ped-textui-bottom', 'auto');
     const notificationTop = hudTextUi?.classList.contains('is-visible')
       ? textUiTop + hudTextUi.getBoundingClientRect().height + gap
       : textUiTop;
-    app.style.setProperty('--ped-notification-top', `${notificationTop.toFixed(2)}px`);
-    app.style.setProperty('--ped-notification-bottom', 'auto');
+    setCachedStyle(app, appStyleCache, '--ped-notification-top', `${notificationTop.toFixed(2)}px`);
+    setCachedStyle(app, appStyleCache, '--ped-notification-bottom', 'auto');
   }
-  app.style.setProperty('--ped-notification-left', `${referenceRect.left.toFixed(2)}px`);
-  app.style.setProperty('--ped-notification-width', `${referenceRect.width.toFixed(2)}px`);
+  setCachedStyle(app, appStyleCache, '--ped-notification-left', `${referenceRect.left.toFixed(2)}px`);
+  setCachedStyle(app, appStyleCache, '--ped-notification-width', `${referenceRect.width.toFixed(2)}px`);
 }
 
 function scheduleTopStatusAnchor() {
@@ -546,6 +535,7 @@ function renderHudSettings(state = {}) {
     enabled: state.enabled !== false,
     location: state.location !== false,
     minimal: Boolean(state.minimal),
+    raceMode: Boolean(state.raceMode),
     position: ['top-left', 'bottom-right'].includes(state.position) ? state.position : 'top-right',
     palette: HUD_PALETTES.includes(state.palette) ? state.palette : 'ocean',
     opacity: normalizeHudOpacity(state.opacity)
@@ -561,6 +551,13 @@ function renderHudSettings(state = {}) {
   const activeMode = hudSettingsState.minimal ? 'minimal' : 'normal';
   settingsModeButtons.forEach((button) => {
     const active = button.dataset.settingsMode === activeMode;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+
+  const activeVehicleMode = hudSettingsState.raceMode ? 'race' : 'normal';
+  settingsVehicleModeButtons.forEach((button) => {
+    const active = button.dataset.settingsVehicleMode === activeVehicleMode;
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
@@ -582,6 +579,7 @@ function renderHudSettings(state = {}) {
 
   setHudPalette(hudSettingsState.palette);
   setHudOpacity(hudSettingsState.opacity);
+  setVehicleRaceMode(hudSettingsState.raceMode);
 }
 
 function setSettingsVisible(open, state) {
@@ -617,9 +615,51 @@ function setMinimalMode(enabled) {
   scheduleTopStatusAnchor();
 }
 
+function setVehicleRaceMode(enabled) {
+  const nextRaceMode = Boolean(enabled);
+  if (activeRaceMode === nextRaceMode) return;
+
+  const firstApply = activeRaceMode === null;
+  activeRaceMode = nextRaceMode;
+  window.clearTimeout(raceModeSwitchTimer);
+  raceModeSwitchTimer = null;
+  vehiclePanel.classList.remove('is-race-switching-out', 'is-race-switching-in');
+
+  const applyRaceMode = () => {
+    app.classList.toggle('is-race-mode', nextRaceMode);
+    renderSafetySlot();
+    renderRaceSeatbelt();
+    scheduleTopStatusAnchor();
+
+    if (firstApply || !vehicleMode || vehicleExiting) return;
+
+    void vehiclePanel.offsetWidth;
+    vehiclePanel.classList.add('is-race-switching-in');
+    raceModeSwitchTimer = window.setTimeout(() => {
+      raceModeSwitchTimer = null;
+      vehiclePanel.classList.remove('is-race-switching-in');
+      scheduleTopStatusAnchor();
+    }, RACE_MODE_SWITCH_IN_MS);
+  };
+
+  if (firstApply || !vehicleMode || vehicleExiting) {
+    applyRaceMode();
+    return;
+  }
+
+  vehiclePanel.classList.add('is-race-switching-out');
+  raceModeSwitchTimer = window.setTimeout(() => {
+    raceModeSwitchTimer = null;
+    vehiclePanel.classList.remove('is-race-switching-out');
+    applyRaceMode();
+  }, RACE_MODE_SWITCH_OUT_MS);
+}
+
 function setHudPalette(palette) {
   const safePalette = HUD_PALETTES.includes(palette) ? palette : 'ocean';
+  if (activeHudPalette === safePalette) return;
   document.documentElement.dataset.hudPalette = safePalette;
+  activeHudPalette = safePalette;
 }
 
 function normalizeHudOpacity(value) {
@@ -630,7 +670,7 @@ function normalizeHudOpacity(value) {
 
 function setHudOpacity(value) {
   const opacity = normalizeHudOpacity(value);
-  document.documentElement.style.setProperty('--hud-opacity', (opacity / 100).toFixed(2));
+  setCachedStyle(document.documentElement, rootStyleCache, '--hud-opacity', (opacity / 100).toFixed(2));
   return opacity;
 }
 
@@ -703,7 +743,6 @@ function updateStatus(name, rawValue, trackChanges = true) {
     status.summary?.parentElement?.classList.add('is-hidden');
     status.summary?.parentElement?.classList.remove('is-critical', 'is-dropping', 'is-empty');
     status.lastValue = undefined;
-    syncCriticalStatusState();
     return;
   }
 
@@ -744,8 +783,6 @@ function updateStatus(name, rawValue, trackChanges = true) {
   status.card.classList.toggle('is-critical', isCritical);
   status.summary?.parentElement?.classList.toggle('is-critical', isCritical);
   status.summary?.parentElement?.classList.toggle('is-empty', value === 0);
-  syncCriticalStatusState();
-
   if (app.classList.contains('is-minimal') && Number.isFinite(previousValue) && value < previousValue && !status.dropTimer) {
     status.summary?.parentElement?.classList.add('is-dropping');
     status.dropTimer = window.setTimeout(() => {
@@ -788,6 +825,9 @@ function setVehicleGear(nextGear) {
 function setVehicleRpm(value) {
   const rpm = Math.round(clamp(value));
   vehicleUi.gearRpmRing.style.strokeDashoffset = String(100 - rpm);
+  vehicleUi.raceRpmBar.style.width = `${rpm}%`;
+  vehicleUi.raceRpmBar.classList.toggle('is-high', rpm >= 72 && rpm < 90);
+  vehicleUi.raceRpmBar.classList.toggle('is-redline', rpm >= 90);
   vehicleUi.gearShell.classList.toggle('is-rpm-high', rpm >= 72 && rpm < 90);
   vehicleUi.gearShell.classList.toggle('is-rpm-redline', rpm >= 90);
 }
@@ -795,9 +835,18 @@ function setVehicleRpm(value) {
 function setVehicleMeter(bar, value) {
   const warningThreshold = Number(hudConfig.vehicleWarnings?.warningThreshold) || 60;
   const dangerThreshold = Number(hudConfig.vehicleWarnings?.dangerThreshold) || 35;
+  const arc = bar === vehicleUi.fuelBar ? vehicleUi.fuelArc : vehicleUi.engineArc;
+  const warning = value <= warningThreshold && value > dangerThreshold;
+  const danger = value <= dangerThreshold;
   bar.style.width = `${value}%`;
-  bar.classList.toggle('is-warning', value <= warningThreshold && value > dangerThreshold);
-  bar.classList.toggle('is-danger', value <= dangerThreshold);
+  bar.classList.toggle('is-warning', warning);
+  bar.classList.toggle('is-danger', danger);
+
+  if (arc) {
+    arc.style.strokeDashoffset = String(value - 100);
+    arc.classList.toggle('is-warning', warning);
+    arc.classList.toggle('is-danger', danger);
+  }
 }
 
 function setVehicleNitro(value, animate = true) {
@@ -825,6 +874,19 @@ function getSafetySlotFallback() {
 }
 
 function renderSafetySlot() {
+  if (activeRaceMode === true) {
+    const showNitro = vehicleSafetyState.hasNitro;
+    vehicleUi.nitroGauge.classList.toggle('is-safety-hidden', !showNitro);
+    vehicleUi.nitroGauge.classList.remove(
+      'is-seatbelt',
+      'is-unbuckled',
+      'is-slot-to-nitro',
+      'is-slot-to-seatbelt'
+    );
+    vehicleUi.nitroGauge.setAttribute('aria-label', translate('nitro_percent', vehicleSafetyState.nitro));
+    return;
+  }
+
   const showNitro = safetySlotOwner === 'nitro' && vehicleSafetyState.hasNitro;
   const showSeatbelt = safetySlotOwner === 'seatbelt' && vehicleSafetyState.seatbeltAvailable;
 
@@ -842,18 +904,75 @@ function renderSafetySlot() {
   }
 }
 
+function renderRaceSeatbelt() {
+  if (!vehicleUi.raceSeatbelt) return;
+
+  const available = vehicleSafetyState.seatbeltAvailable === true;
+  const buckled = vehicleSafetyState.seatbelt === true;
+  vehicleUi.raceSeatbelt.classList.toggle('is-unavailable', !available);
+  vehicleUi.raceSeatbelt.classList.toggle('is-buckled', available && buckled);
+  vehicleUi.raceSeatbelt.classList.toggle('is-unbuckled', available && !buckled);
+  vehicleUi.raceSeatbelt.setAttribute('aria-hidden', String(activeRaceMode !== true || !available));
+
+  if (available) {
+    vehicleUi.raceSeatbelt.setAttribute('aria-label', translate(buckled ? 'seatbelt_on' : 'seatbelt_off'));
+  }
+}
+
+function clearSafetySlotTransition() {
+  window.clearTimeout(safetySlotTransitionTimer);
+  safetySlotTransitionTimer = null;
+  vehicleUi.nitroGauge.classList.remove('is-slot-to-nitro', 'is-slot-to-seatbelt');
+}
+
+function transitionSafetySlot(owner) {
+  clearSafetySlotTransition();
+
+  if (owner === safetySlotOwner) {
+    safetySlotOwner = owner;
+    renderSafetySlot();
+    return;
+  }
+
+  const transitionClass = owner === 'seatbelt' ? 'is-slot-to-seatbelt' : 'is-slot-to-nitro';
+  vehicleUi.nitroGauge.classList.add(transitionClass);
+  safetySlotTransitionTimer = window.setTimeout(() => {
+    safetySlotTransitionTimer = null;
+    safetySlotOwner = owner;
+    renderSafetySlot();
+    vehicleUi.nitroGauge.classList.remove(transitionClass);
+  }, SAFETY_SLOT_SWITCH_MS);
+}
+
 function selectSafetySlot(owner, holdMs = 0) {
   window.clearTimeout(safetySlotTimer);
+  clearSafetySlotTransition();
   safetySlotTimer = null;
-  safetySlotOwner = owner;
-  renderSafetySlot();
+  const switchingToSeatbelt = safetySlotOwner === 'nitro'
+    && owner === 'seatbelt'
+    && vehicleSafetyState.hasNitro
+    && vehicleSafetyState.seatbeltAvailable;
+
+  if (switchingToSeatbelt) transitionSafetySlot(owner);
+  else {
+    safetySlotOwner = owner;
+    renderSafetySlot();
+  }
 
   if (holdMs > 0) {
     safetySlotTimer = window.setTimeout(() => {
       safetySlotTimer = null;
-      safetySlotOwner = getSafetySlotFallback();
-      renderSafetySlot();
-    }, holdMs);
+      const fallbackOwner = getSafetySlotFallback();
+      const returningToNitro = safetySlotOwner === 'seatbelt'
+        && fallbackOwner === 'nitro'
+        && vehicleSafetyState.seatbelt === true;
+
+      if (returningToNitro) transitionSafetySlot(fallbackOwner);
+      else {
+        safetySlotOwner = fallbackOwner;
+        renderSafetySlot();
+      }
+    }, holdMs + (switchingToSeatbelt ? SAFETY_SLOT_SWITCH_MS : 0));
   }
 }
 
@@ -864,6 +983,7 @@ function resetVehicleSafetySlot() {
   safetySlotTimer = null;
   nitroChangeTimer = null;
   nitroEmptyAttemptTimer = null;
+  clearSafetySlotTransition();
   nitroEmptyAttemptAnimation?.cancel();
   nitroEmptyAttemptAnimation = null;
   safetySlotOwner = null;
@@ -871,12 +991,14 @@ function resetVehicleSafetySlot() {
   lastSeatbeltState = null;
   lastNitroActive = false;
   lastHadNitro = false;
+  app.classList.remove('is-nitro-active');
   vehicleSafetyState = {
     hasNitro: false,
     nitro: 0,
     seatbelt: false,
     seatbeltAvailable: false
   };
+  renderRaceSeatbelt();
   vehicleUi.nitroGauge.classList.remove(
     'is-changing',
     'is-empty-attempt',
@@ -928,6 +1050,8 @@ function setVehicleSafety(nitroValue, seatbelt, seatbeltAvailable = true, nitroA
     seatbelt: seatbelt === true,
     seatbeltAvailable: seatbeltAvailable === true
   };
+  app.classList.toggle('is-nitro-active', hasNitro && nitro > 0 && nitroActive === true);
+  renderRaceSeatbelt();
 
   if (hasNitro) {
     setVehicleNitro(nitro);
@@ -941,6 +1065,15 @@ function setVehicleSafety(nitroValue, seatbelt, seatbeltAvailable = true, nitroA
   lastSeatbeltState = seatbelt === true;
   lastNitroActive = nitroActive === true;
   lastHadNitro = hasNitro;
+
+  if (activeRaceMode === true) {
+    window.clearTimeout(safetySlotTimer);
+    safetySlotTimer = null;
+    clearSafetySlotTransition();
+    safetySlotOwner = getSafetySlotFallback();
+    renderSafetySlot();
+    return;
+  }
 
   if (seatbeltChanged && seatbeltAvailable === true) {
     selectSafetySlot(
@@ -971,11 +1104,30 @@ function setVehicleSafety(nitroValue, seatbelt, seatbeltAvailable = true, nitroA
   }
 }
 
+function resetVehicleCrashEffect() {
+  window.clearTimeout(vehicleCrashEffectTimer);
+  vehicleCrashEffectTimer = null;
+  app.classList.remove('is-vehicle-crash-reboot');
+}
+
+function playVehicleCrashEffect() {
+  if (!vehicleMode || vehicleExiting || !vehicleRevealReady) return;
+
+  resetVehicleCrashEffect();
+  void vehiclePanel.offsetWidth;
+  app.classList.add('is-vehicle-crash-reboot');
+  vehicleCrashEffectTimer = window.setTimeout(() => {
+    vehicleCrashEffectTimer = null;
+    app.classList.remove('is-vehicle-crash-reboot');
+  }, VEHICLE_CRASH_EFFECT_MS);
+}
+
 function updateVehicle(vehicle) {
   const nextVehicleMode = Boolean(vehicle);
   const emergencyLightsActive = nextVehicleMode
     && (vehicle.emergencyLights === true || Number(vehicle.emergencyLights) === 1);
   app.classList.toggle('is-emergency-lights', emergencyLightsActive);
+  if (!nextVehicleMode) resetVehicleCrashEffect();
 
   if (nextVehicleMode && vehicleExiting) {
     window.clearTimeout(vehicleExitTimer);
@@ -1102,12 +1254,14 @@ function update(patch) {
     setShowAllStatuses(normalMode || (Boolean(patch.showAllStatuses) && !modeSwitching));
   }
 
+  const hasStatusPatch = STATUS_ORDER.some((name) => Object.hasOwn(patch, name));
   if (Object.hasOwn(patch, 'health')) updateStatus('health', patch.health, !modeChanged);
   if (Object.hasOwn(patch, 'armour')) updateStatus('armour', patch.armour, !modeChanged);
   if (Object.hasOwn(patch, 'stamina')) updateStatus('stamina', patch.stamina, !modeChanged);
   if (Object.hasOwn(patch, 'oxygen')) updateStatus('oxygen', patch.oxygen, !modeChanged);
   if (Object.hasOwn(patch, 'hunger')) updateStatus('hunger', patch.hunger, !modeChanged);
   if (Object.hasOwn(patch, 'thirst')) updateStatus('thirst', patch.thirst, !modeChanged);
+  if (hasStatusPatch) syncCriticalStatusState();
 
   if (Object.hasOwn(patch, 'temporaryId') || Object.hasOwn(patch, 'serverId')) {
     const temporaryId = numericId(patch.temporaryId ?? patch.serverId, 10);
@@ -1126,7 +1280,14 @@ function update(patch) {
     hudState.voiceMode = setVoiceMode(patch.voiceMode);
   }
 
-  scheduleTopStatusAnchor();
+  const layoutRelevant = hasStatusPatch
+    || Object.hasOwn(patch, 'vehicle')
+    || Object.hasOwn(patch, 'minimalMode')
+    || Object.hasOwn(patch, 'showAllStatuses')
+    || Object.hasOwn(patch, 'temporaryId')
+    || Object.hasOwn(patch, 'serverId')
+    || Object.hasOwn(patch, 'permanentId');
+  if (layoutRelevant) scheduleTopStatusAnchor();
 }
 
 
@@ -1135,6 +1296,10 @@ settingsLocation.addEventListener('click', () => sendSettingsAction('toggleLocat
 
 settingsModeButtons.forEach((button) => {
   button.addEventListener('click', () => sendSettingsAction('setMode', button.dataset.settingsMode));
+});
+
+settingsVehicleModeButtons.forEach((button) => {
+  button.addEventListener('click', () => sendSettingsAction('setVehicleMode', button.dataset.settingsVehicleMode));
 });
 
 settingsPositionButtons.forEach((button) => {
@@ -1168,18 +1333,18 @@ window.addEventListener('keydown', (event) => {
 });
 
 const notificationGlyphs = {
-  error: '×',
+  error: '\u00D7',
   warning: '!',
-  success: '✓',
+  success: '\u2713',
   inform: 'i',
   info: 'i'
 };
 
 const iconGlyphs = {
   'circle-info': 'i',
-  'circle-check': '✓',
+  'circle-check': '\u2713',
   'triangle-exclamation': '!',
-  'circle-xmark': '×',
+  'circle-xmark': '\u00D7',
   hand: 'E'
 };
 
@@ -1346,6 +1511,10 @@ window.addEventListener('message', (event) => {
     animateEmptyNitroAttempt();
     return;
   }
+  if (payload.action === 'hud:vehicleCrash') {
+    playVehicleCrashEffect();
+    return;
+  }
 
   if (payload.action === 'hud:visibility' || payload.action === 'visibility') {
     setVisible({ ...data, visible: data.visible ?? payload.visible });
@@ -1373,6 +1542,7 @@ window.addEventListener('message', (event) => {
       audio.currentTime = 0;
     });
     activeVehicleSounds.clear();
+    resetVehicleCrashEffect();
     resetHudNotifications();
     hudState = { ...DEFAULT_HUD_STATE };
     setVoiceMode(DEFAULT_HUD_STATE.voiceMode);

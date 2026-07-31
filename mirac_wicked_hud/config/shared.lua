@@ -148,6 +148,18 @@ Config.VehicleWarnings = {
     criticalRepeatInterval = 90000
 }
 
+-- Briefly reboots the vehicle HUD after a meaningful collision. Speed values
+-- are always evaluated in km/h so changing Config.SpeedUnit does not alter the
+-- sensitivity. Braking alone cannot trigger it; a collision or body-health
+-- loss must also be present.
+Config.VehicleCrashEffect = {
+    enabled = true,
+    minimumSpeed = 32.0,
+    speedDrop = 15.0,
+    bodyHealthLoss = 12.0,
+    cooldown = 3000
+}
+
 Config.Minimap = {
     mode = 'vehicle', -- vehicle, always, never
     hideNativeVitals = true,
@@ -164,6 +176,7 @@ Config.DefaultSettings = {
     enabled = true,
     location = true,
     minimal = false,
+    raceMode = false,
     position = 'top-right',
     palette = 'ocean',
     opacity = 100 -- 40-100; lower values make the whole HUD more transparent

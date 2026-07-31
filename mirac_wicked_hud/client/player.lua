@@ -29,9 +29,10 @@ end
 
 local function syncMetadataFromState(initialMetadata)
     initialMetadata = type(initialMetadata) == 'table' and initialMetadata or {}
+    local state = LocalPlayer.state
 
     for logicalName, stateKey in pairs(Config.Metadata) do
-        local value = LocalPlayer.state[stateKey]
+        local value = state[stateKey]
         if value == nil then value = initialMetadata[logicalName] end
         Hud.player.metadata[logicalName] = Hud.clamp(value, 0, 100)
     end
@@ -73,7 +74,7 @@ function Hud.player.setIdentityIds(data)
     Hud.sendNuiUpdate({
         temporaryId = temporaryId,
         permanentId = Hud.numericString(permanentId, Config.Identity.permanentIdMaxLength, '0')
-    }, true)
+    })
 end
 
 function Hud.player.setInitialData(data)
@@ -84,16 +85,17 @@ function Hud.player.setInitialData(data)
     Hud.sendNuiUpdate({
         street = Hud.player.street,
         area = Hud.player.area
-    }, true)
+    })
 end
 
 function Hud.player.updateFrameworkData(snapshot)
     if type(snapshot) ~= 'table' then return end
     local metadata = type(snapshot.metadata) == 'table' and snapshot.metadata or {}
+    local state = LocalPlayer.state
     local changed = false
 
     for logicalName, stateKey in pairs(Config.Metadata) do
-        if LocalPlayer.state[stateKey] == nil then
+        if state[stateKey] == nil then
             local value = Hud.clamp(metadata[logicalName], 0, 100)
             if Hud.player.metadata[logicalName] ~= value then
                 Hud.player.metadata[logicalName] = value
@@ -121,31 +123,33 @@ exports('setIdentityIds', function(data)
 end)
 
 for logicalName, stateKey in pairs(Config.Metadata) do
-    if not watchedMetadata[stateKey] then
-        watchedMetadata[stateKey] = true
+    local logicalNames = watchedMetadata[stateKey]
+    if not logicalNames then
+        logicalNames = {}
+        watchedMetadata[stateKey] = logicalNames
         AddStateBagChangeHandler(stateKey, nil, function(bagName, _, value)
             if bagName ~= localPlayerBagName() then return end
 
-            for name, configuredKey in pairs(Config.Metadata) do
-                if configuredKey == stateKey then
-                    Hud.player.metadata[name] = Hud.clamp(value, 0, 100)
-                end
+            local normalized = Hud.clamp(value, 0, 100)
+            for index = 1, #logicalNames do
+                Hud.player.metadata[logicalNames[index]] = normalized
             end
 
             if Hud.state.loaded then Hud.sendNuiUpdate(metadataPatch()) end
         end)
     end
+    logicalNames[#logicalNames + 1] = logicalName
 end
 
 CreateThread(function()
     while true do
         if not Hud.shouldShow() then
-            Hud.sendVisibility()
+            Hud.sendVisibility(false, false)
             Wait(Config.Client.hiddenUpdateInterval)
         else
             local ped = cache.ped
             if not ped or ped == 0 or not DoesEntityExist(ped) then
-                Hud.sendVisibility()
+                Hud.sendVisibility(false, true)
                 Wait(Config.Client.hiddenUpdateInterval)
             else
                 updateLocation(ped)
@@ -162,7 +166,7 @@ CreateThread(function()
                     oxygen = Hud.round(Hud.clamp((remaining / Config.Oxygen.maxSeconds) * 100, 0, 100) or 0)
                 end
 
-                Hud.sendVisibility()
+                Hud.sendVisibility(false, true)
                 Hud.sendNuiUpdate({
                     health = Hud.round(Hud.clamp(health, 0, 100) or 0),
                     armour = Hud.round(Hud.clamp(GetPedArmour(ped), 0, 100) or 0),

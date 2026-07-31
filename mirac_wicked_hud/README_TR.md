@@ -8,7 +8,7 @@ saklar ve GTAV Legacy ile GTAV Enhanced ses sistemlerini destekler.
 ## Dağıtım bilgisi
 
 - Resource klasörü: `mirac_wicked_hud`
-- Sürüm: `1.3.0`
+- Sürüm: `1.4.0-beta.1`
 - Lisans: MIT
 - Doğrulanan geliştirme tabanı: qbx_core 1.23.0, ox_lib 3.39.0
 
@@ -68,11 +68,12 @@ Ayrıntılı kurulum için [INSTALL_TR.md](INSTALL_TR.md) dosyasına bak.
 | `/hud` | HUD görünürlüğünü açar/kapatır |
 | `/hudayar` / `/hudsettings` | HUD ayar menüsünü açar |
 | `/hudminimal` | Normal/minimal mod arasında geçiş yapar |
+| `/hudrace` / `/hudyaris` | Normal araç HUD'ı ile yarış kokpiti arasında geçiş yapar |
 | `/hudkonum` / `/hudposition [top-right/top-left/bottom-right]` | Konumu seçer veya sıradaki konuma geçer |
 | `/hudreset` | Oyuncunun yerel görsel HUD ayarlarını sıfırlar |
 | `/hudyenile` / `/hudrefresh` | Kayıtlı ayarları değiştirmeden yerel HUD görünümünü yeniden kurar |
 
-`/hudreset`; görünürlük, normal/minimal mod, konum, palet ve şeffaflığı
+`/hudreset`; görünürlük, normal/minimal mod, araç HUD görünümü, konum, palet ve şeffaflığı
 `Config.DefaultSettings` değerlerine döndürür. Can, zırh, stamina, tokluk,
 susuzluk, citizen ID veya başka bir framework/oynanış değerini değiştirmez.
 

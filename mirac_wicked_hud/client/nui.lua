@@ -14,6 +14,19 @@ local function post(payload)
     SendNUIMessage(payload)
 end
 
+local function queueNotification(payload)
+    local configuredLimit = type(Config.Notifications) == 'table'
+        and Config.Notifications.hardSafetyLimit
+        or 100
+    local maximum = math.floor(Hud.clamp(configuredLimit, 10, 500) or 100)
+
+    if #queuedNotifications >= maximum then
+        table.remove(queuedNotifications, 1)
+    end
+
+    queuedNotifications[#queuedNotifications + 1] = payload
+end
+
 local function diffAndMerge(target, patch, force)
     local changes = {}
     local changed = false
@@ -72,7 +85,7 @@ function Hud.sendNui(action, data, force)
         if nuiReady then
             post(payload)
         else
-            queuedNotifications[#queuedNotifications + 1] = payload
+            queueNotification(payload)
         end
         return true
     end
@@ -110,6 +123,18 @@ function Hud.resetNui()
 end
 
 function Hud.setNuiReady()
+    -- Chromium can reload the NUI page without restarting the Lua runtime.
+    -- Replay the cached persistent messages so the replacement page receives
+    -- the same locale, config, visibility, settings and TextUI state.
+    if nuiReady then
+        for action, data in pairs(messageCache) do
+            pendingMessages[action] = {
+                action = action,
+                data = Hud.copy(data)
+            }
+        end
+    end
+
     nuiReady = true
 
     local orderedActions = {

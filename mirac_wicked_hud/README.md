@@ -5,7 +5,7 @@ Open-source FiveM HUD for **Qbox** using **ox_lib**. The resource keeps framewor
 ## Release
 
 - Resource folder: `mirac_wicked_hud`
-- Version: `1.3.0`
+- Version: `1.4.0-beta.1`
 - License: MIT
 - Tested development stack from the supplied server snapshot: qbx_core 1.23.0 and ox_lib 3.39.0
 
@@ -61,11 +61,12 @@ See [INSTALL.md](INSTALL.md) for the full setup guide and [README_TR.md](README_
 | `/hud` | Toggle HUD visibility |
 | `/hudayar` / `/hudsettings` | Open HUD settings |
 | `/hudminimal` | Toggle minimal mode |
+| `/hudrace` / `/hudyaris` | Toggle between the normal vehicle HUD and racing cockpit |
 | `/hudkonum` / `/hudposition` | Select or cycle HUD position |
 | `/hudreset` | Reset this player's local visual HUD settings |
 | `/hudyenile` / `/hudrefresh` | Rebuild the local HUD presentation without changing saved settings |
 
-`/hudreset` restores visibility, normal/minimal mode, position, palette and
+`/hudreset` restores visibility, normal/minimal mode, vehicle HUD appearance, position, palette and
 opacity to `Config.DefaultSettings`. It does not change health, armour,
 stamina, hunger, thirst, citizen ID or any other framework/gameplay value.
 

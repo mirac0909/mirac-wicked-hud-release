@@ -6,6 +6,8 @@ Hud.vehicle = Hud.vehicle or {
     radarVisible = nil,
     initialRadarVisible = nil,
     minimapLayoutTouched = false,
+    minimapRaceMode = nil,
+    crashRadarSuppressed = false,
     seatbelt = false,
     seatbeltOverride = nil
 }
@@ -14,6 +16,19 @@ local defaultMinimapLayout = {
     minimap = { -0.0045, 0.002, 0.150, 0.188888 },
     mask = { 0.020, 0.032, 0.111, 0.159 },
     blur = { -0.030, 0.022, 0.266, 0.237 }
+}
+
+local hudMinimapLayouts = {
+    normal = {
+        minimap = { -0.0045, -0.0220, 0.1500, 0.1889 },
+        mask = { 0.0200, 0.0320, 0.1110, 0.1590 },
+        blur = { -0.0300, 0.0220, 0.2660, 0.2370 }
+    },
+    race = {
+        minimap = { -0.0035, -0.0240, 0.1750, 0.2150 },
+        mask = { 0.0213, 0.0320, 0.1291, 0.1824 },
+        blur = { -0.0320, 0.0210, 0.3110, 0.2722 }
+    }
 }
 
 local function minimapManaged()
@@ -38,12 +53,26 @@ end
 local function configureMinimap()
     if not minimapManaged() then return end
 
+    local raceMode = Hud.settings and Hud.settings.raceMode == true
+    local previousRaceMode = Hud.vehicle.minimapRaceMode
+    local layout = raceMode
+        and hudMinimapLayouts.race
+        or hudMinimapLayouts.normal
+    local minimap = layout.minimap
+    local mask = layout.mask
+    local blur = layout.blur
+
     Hud.vehicle.minimapLayoutTouched = true
     SetMinimapClipType(0)
-    SetMinimapComponentPosition('minimap', 'L', 'B', -0.0045, -0.0220, 0.1500, 0.1889)
-    SetMinimapComponentPosition('minimap_mask', 'L', 'B', 0.0200, 0.0320, 0.1110, 0.1590)
-    SetMinimapComponentPosition('minimap_blur', 'L', 'B', -0.0300, 0.0220, 0.2660, 0.2370)
+    SetMinimapComponentPosition('minimap', 'L', 'B', minimap[1], minimap[2], minimap[3], minimap[4])
+    SetMinimapComponentPosition('minimap_mask', 'L', 'B', mask[1], mask[2], mask[3], mask[4])
+    SetMinimapComponentPosition('minimap_blur', 'L', 'B', blur[1], blur[2], blur[3], blur[4])
     SetRadarZoom(Config.Minimap.zoom)
+    Hud.vehicle.minimapRaceMode = raceMode
+
+    if previousRaceMode ~= nil and previousRaceMode ~= raceMode then
+        forceMinimapRefresh()
+    end
 end
 
 local function restoreMinimapLayout()
@@ -59,6 +88,7 @@ local function restoreMinimapLayout()
     SetMinimapComponentPosition('minimap_blur', 'L', 'B', blur[1], blur[2], blur[3], blur[4])
     forceMinimapRefresh()
     Hud.vehicle.minimapLayoutTouched = false
+    Hud.vehicle.minimapRaceMode = nil
 end
 
 local function setRadarVisible(visible, force)
@@ -88,14 +118,15 @@ end
 local function isRadarAllowed(inVehicle)
     if not minimapManaged() then return false end
     if not Hud.shouldShow() then return false end
+    if Hud.vehicle.crashRadarSuppressed then return false end
     if Config.Minimap.mode == 'always' then return true end
     return inVehicle
 end
 
-local function readNitro(vehicle)
+local function readNitro(vehicle, state)
     if not Config.Nitro.enabled then return false end
 
-    local state = Entity(vehicle).state
+    state = state or Entity(vehicle).state
     if not state then return false end
 
     for index = 1, #Config.Nitro.stateBags do
@@ -126,14 +157,16 @@ local function normalizeSeatbeltValue(value)
     if value == false or value == 0 or value == '0' or value == 'false' then return false end
 end
 
-local function readSeatbelt(vehicle)
+local function readSeatbelt(vehicle, state)
     if not supportsSeatbelt(vehicle) then return false end
     if Hud.vehicle.seatbeltOverride ~= nil then return Hud.vehicle.seatbeltOverride end
 
-    local state = Entity(vehicle).state
-    for index = 1, #Config.Seatbelt.stateBags do
-        local value = normalizeSeatbeltValue(state[Config.Seatbelt.stateBags[index]])
-        if value ~= nil then return value end
+    state = state or Entity(vehicle).state
+    if state then
+        for index = 1, #Config.Seatbelt.stateBags do
+            local value = normalizeSeatbeltValue(state[Config.Seatbelt.stateBags[index]])
+            if value ~= nil then return value end
+        end
     end
 
     return Hud.vehicle.seatbelt
@@ -150,6 +183,101 @@ local nitroSoundVehicle = nil
 local previousNitroLevel = nil
 local nitroSoundStarted = false
 local previousNitroActive = nil
+local crashVehicle = nil
+local previousCrashSpeed = nil
+local previousCrashBodyHealth = nil
+local crashEffectCooldownUntil = 0
+local crashRadarSequence = 0
+
+local function resetCrashDetection()
+    crashVehicle = nil
+    previousCrashSpeed = nil
+    previousCrashBodyHealth = nil
+    crashEffectCooldownUntil = 0
+    crashRadarSequence = crashRadarSequence + 1
+    Hud.vehicle.crashRadarSuppressed = false
+end
+
+local function playCrashRadarReboot(vehicle)
+    crashRadarSequence = crashRadarSequence + 1
+    local sequence = crashRadarSequence
+
+    local function stillValid()
+        return crashRadarSequence == sequence
+            and cache.vehicle == vehicle
+            and DoesEntityExist(vehicle)
+    end
+
+    CreateThread(function()
+        -- Mirrors the 820ms NUI power-cut keyframes. GTA's native radar cannot
+        -- fade, so its actual map feed follows the off/on beats instead.
+        Wait(90)
+        if not stillValid() then return end
+        Hud.vehicle.crashRadarSuppressed = true
+        setRadarVisible(false, true)
+
+        Wait(290)
+        if not stillValid() then return end
+        Hud.vehicle.crashRadarSuppressed = false
+        setRadarVisible(isRadarAllowed(true), true)
+
+        Wait(165)
+        if not stillValid() then return end
+        Hud.vehicle.crashRadarSuppressed = true
+        setRadarVisible(false, true)
+
+        Wait(80)
+        if not stillValid() then return end
+        Hud.vehicle.crashRadarSuppressed = false
+        setRadarVisible(isRadarAllowed(true), true)
+    end)
+end
+
+local function updateVehicleCrashEffect(vehicle, speedKmh)
+    local settings = Config.VehicleCrashEffect
+    if not settings or not settings.enabled then
+        resetCrashDetection()
+        return
+    end
+
+    local bodyHealth = GetVehicleBodyHealth(vehicle)
+    if crashVehicle ~= vehicle or previousCrashSpeed == nil or previousCrashBodyHealth == nil then
+        crashVehicle = vehicle
+        previousCrashSpeed = speedKmh
+        previousCrashBodyHealth = bodyHealth
+        return
+    end
+
+    local oldSpeed = previousCrashSpeed
+    local oldBodyHealth = previousCrashBodyHealth
+    previousCrashSpeed = speedKmh
+    previousCrashBodyHealth = bodyHealth
+
+    local minimumSpeed = tonumber(settings.minimumSpeed) or 32.0
+    local speedDropThreshold = math.max(tonumber(settings.speedDrop) or 15.0, 1.0)
+    local bodyLossThreshold = math.max(tonumber(settings.bodyHealthLoss) or 12.0, 1.0)
+    local cooldown = math.max(math.floor(tonumber(settings.cooldown) or 3000), 500)
+
+    local now = GetGameTimer()
+    if now < crashEffectCooldownUntil or oldSpeed < minimumSpeed then return end
+
+    local speedLoss = math.max(0.0, oldSpeed - speedKmh)
+    local bodyHealthLoss = math.max(0.0, oldBodyHealth - bodyHealth)
+    local collided = HasEntityCollidedWithAnything(vehicle)
+    local impactDetected = bodyHealthLoss >= bodyLossThreshold
+        or (collided and speedLoss >= speedDropThreshold)
+
+    if not impactDetected or not Hud.isNuiReady() then return end
+
+    crashEffectCooldownUntil = now + cooldown
+    Hud.sendNui('hud:vehicleCrash', {
+        severity = math.min(1.0, math.max(
+            speedLoss / speedDropThreshold,
+            bodyHealthLoss / bodyLossThreshold
+        ))
+    }, true)
+    playCrashRadarReboot(vehicle)
+end
 
 local function playConfiguredSound(settings, nativeSound, customSound)
     if not settings.sound then return end
@@ -194,7 +322,7 @@ local function playNitroSound(kind)
     return true
 end
 
-local function updateNitroSounds(vehicle, level)
+local function updateNitroSounds(vehicle, level, state)
     if level == false then
         nitroSoundVehicle = nil
         previousNitroLevel = nil
@@ -203,7 +331,8 @@ local function updateNitroSounds(vehicle, level)
         return
     end
 
-    local rawActive = Entity(vehicle).state.nitroActive
+    state = state or Entity(vehicle).state
+    local rawActive = state and state.nitroActive or nil
     local active = rawActive == true
 
     if nitroSoundVehicle ~= vehicle then
@@ -340,16 +469,18 @@ end
 local function vehicleSnapshot(vehicle)
     if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return false end
 
+    local state = Entity(vehicle).state
     local speedKmh = math.max(0, GetEntitySpeed(vehicle) * 3.6)
+    updateVehicleCrashEffect(vehicle, speedKmh)
     local speed = Config.SpeedUnit == 'mph' and speedKmh * 0.621371 or speedKmh
     local gear = GetVehicleCurrentGear(vehicle)
     local rpm = Hud.round((Hud.clamp(GetVehicleCurrentRpm(vehicle), 0, 1) or 0) * 100)
     updateGearShiftSound(vehicle, gear, speed)
-    local nitro = readNitro(vehicle)
-    updateNitroSounds(vehicle, nitro)
+    local nitro = readNitro(vehicle, state)
+    updateNitroSounds(vehicle, nitro, state)
     local nitroValue = false
-    local nitroActive = nitro ~= false and Entity(vehicle).state.nitroActive == true
-    local fuel = Hud.round(Hud.clamp(Hud.Fuel.get(vehicle), 0, 100) or 0)
+    local nitroActive = nitro ~= false and state and state.nitroActive == true
+    local fuel = Hud.round(Hud.clamp(Hud.Fuel.get(vehicle, state), 0, 100) or 0)
     local engine = Hud.round(Hud.clamp(GetVehicleEngineHealth(vehicle) / 10, 0, 100) or 0)
     if nitro ~= false then nitroValue = Hud.round(nitro) end
     updateVehicleWarningSounds(vehicle, fuel, engine)
@@ -362,7 +493,7 @@ local function vehicleSnapshot(vehicle)
         nitro = nitroValue,
         nitroActive = nitroActive,
         seatbeltAvailable = supportsSeatbelt(vehicle),
-        seatbelt = readSeatbelt(vehicle),
+        seatbelt = readSeatbelt(vehicle, state),
         emergencyLights = isEmergencySignalActive(vehicle),
         gear = gear == 0 and (speed < 1 and 'N' or 'R') or tostring(gear)
     }
@@ -425,6 +556,7 @@ local function onVehicleChanged(vehicle)
     previousNitroLevel = nil
     nitroSoundStarted = false
     previousNitroActive = nil
+    resetCrashDetection()
 
     if inVehicle then
         CreateThread(primeMinimap)
@@ -443,7 +575,7 @@ end)
 if Config.Seatbelt.enabled and Config.Seatbelt.builtIn then
     lib.addKeybind({
         name = ('%s_seatbelt'):format(Hud.resource:gsub('[^%w_]', '_')),
-        description = locale('seatbelt_toggle'),
+        description = ('[HUD] %s'):format(locale('seatbelt_toggle')),
         defaultKey = Config.Seatbelt.defaultKey,
         onPressed = function()
             Hud.vehicle.setSeatbelt(not Hud.vehicle.isSeatbeltOn())
@@ -582,6 +714,7 @@ end)
 function Hud.vehicle.restoreNativeHud()
     Hud.vehicle.warmupFrames = 0
     Hud.vehicle.nativeVitalsGuardFrames = 0
+    Hud.vehicle.crashRadarSuppressed = false
 
     if Hud.vehicle.minimapScaleform and Config.Minimap.hideNativeVitals then
         setNativeVitalsVisible(true)

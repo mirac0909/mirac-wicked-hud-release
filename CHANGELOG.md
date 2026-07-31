@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.4.0-beta.1 — 2026-07-31
+
+- Added a persistent race vehicle HUD selectable from settings or with
+  `/hudrace` and `/hudyaris`, while preserving the original vehicle layout.
+- Added a centered race cockpit with gear, speed, RPM, seatbelt, nitro and
+  enlarged C-shaped fuel and engine meters.
+- Added palette-aware race styling, RPM thresholds, nitro feedback and smooth
+  transitions between normal, race, gear, seatbelt and nitro states.
+- Added a race minimap layout with corrected native radar alignment and the
+  normal HUD frame design.
+- Added a crash reboot effect synchronized across the vehicle HUD, minimap
+  frame and native radar.
+- Improved settings persistence, reset behavior, localization, validation and
+  NUI cache handling for the new vehicle mode.
+
 ## 1.3.0 — 2026-07-29
 
 - Added interaction-aware ownership for the shared nitro and seatbelt

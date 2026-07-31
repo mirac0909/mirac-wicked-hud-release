@@ -46,6 +46,7 @@ end
 Hud.settings.enabled = readBoolean('enabled', Config.DefaultSettings.enabled)
 Hud.settings.location = readBoolean('location', Config.DefaultSettings.location)
 Hud.settings.minimal = readBoolean('minimalMode', Config.DefaultSettings.minimal)
+Hud.settings.raceMode = readBoolean('raceMode', Config.DefaultSettings.raceMode)
 Hud.settings.position = readPosition()
 Hud.settings.palette = readPalette()
 Hud.settings.opacity = readOpacity()
@@ -56,6 +57,7 @@ function Hud.getSettingsState()
         enabled = Hud.settings.enabled,
         location = Hud.settings.location,
         minimal = Hud.settings.minimal,
+        raceMode = Hud.settings.raceMode,
         position = Hud.settings.position,
         palette = Hud.settings.palette,
         opacity = Hud.settings.opacity
@@ -75,7 +77,7 @@ function Hud.sendLocale()
     Hud.sendNui(Hud.actions.locale, {
         language = GetConvar('ox:locale', 'en'),
         strings = Hud.getNuiLocale()
-    }, true)
+    })
 end
 
 local function safeZonePayload()
@@ -96,18 +98,13 @@ function Hud.getLayoutMetrics()
     }
 end
 
-function Hud.publishLayoutMetrics()
-end
-
-function Hud.publishPalette()
-end
-
 function Hud.sendConfig()
     local safeZone = safeZonePayload()
     lastSafeZoneInset = safeZone.x
 
     Hud.sendNui(Hud.actions.config, {
         minimalMode = Hud.settings.minimal,
+        raceMode = Hud.settings.raceMode,
         locationVisible = Hud.settings.location,
         hudPosition = Hud.settings.position,
         speedUnit = Config.SpeedUnit,
@@ -127,17 +124,12 @@ function Hud.sendConfig()
         },
         notificationSafetyLimit = Config.Notifications.hardSafetyLimit,
         safeZone = safeZone
-    }, true)
-
-    Hud.publishLayoutMetrics()
+    })
 end
 
 function Hud.syncSettingsNui()
     if not Hud.settings.open then return end
-    Hud.sendNui(Hud.actions.settings, { open = true, state = Hud.getSettingsState() }, true)
-end
-
-function Hud.publishPosition()
+    Hud.sendNui(Hud.actions.settings, { open = true, state = Hud.getSettingsState() })
 end
 
 function Hud.shouldShow()
@@ -146,11 +138,13 @@ function Hud.shouldShow()
     return not IsPauseMenuActive()
 end
 
-function Hud.sendVisibility(force)
+function Hud.sendVisibility(force, panelsVisible)
     local pauseAllowsHud = Config.Client.showOnPause or not IsPauseMenuActive()
     local loaded = Hud.state.loaded and pauseAllowsHud
+    if type(panelsVisible) ~= 'boolean' then panelsVisible = Hud.shouldShow() end
+
     Hud.sendNui(Hud.actions.visibility, {
-        panelsVisible = Hud.shouldShow(),
+        panelsVisible = panelsVisible,
         notificationsVisible = loaded
             and Config.Notifications.enabled
             and (Hud.settings.enabled or Config.Notifications.showWhenHudHidden),
@@ -314,6 +308,27 @@ function Hud.setMinimal(enabled, showNotification)
     end
 end
 
+function Hud.setRaceMode(enabled, showNotification)
+    Hud.settings.raceMode = enabled == true
+    SetResourceKvp(kvpPrefix .. 'raceMode', Hud.settings.raceMode and 'true' or 'false')
+    Hud.sendConfig()
+    Hud.syncSettingsNui()
+
+    if Hud.vehicle and Hud.vehicle.reapplyNativeHud then
+        Hud.vehicle.reapplyNativeHud(90)
+    end
+
+    if showNotification then
+        Hud.feedback({
+            title = 'HUD',
+            description = locale(Hud.settings.raceMode and 'race_mode_enabled' or 'race_mode_disabled'),
+            type = 'inform'
+        })
+    end
+
+    return true
+end
+
 function Hud.setLocationVisible(enabled)
     Hud.settings.location = enabled == true
     SetResourceKvp(kvpPrefix .. 'location', Hud.settings.location and 'true' or 'false')
@@ -326,7 +341,6 @@ function Hud.setPosition(position, showNotification)
 
     Hud.settings.position = position
     SetResourceKvp(kvpPrefix .. 'position', position)
-    Hud.publishPosition()
     Hud.sendConfig()
     Hud.syncSettingsNui()
 
@@ -343,7 +357,6 @@ function Hud.setPalette(palette)
 
     Hud.settings.palette = palette
     SetResourceKvp(kvpPrefix .. 'palette', palette)
-    Hud.publishPalette()
     Hud.sendConfig()
     Hud.syncSettingsNui()
     return true
@@ -363,7 +376,7 @@ end
 function Hud.closeSettings()
     Hud.settings.open = false
     SetNuiFocus(false, false)
-    Hud.sendNui(Hud.actions.settings, { open = false, state = Hud.getSettingsState() }, true)
+    Hud.sendNui(Hud.actions.settings, { open = false, state = Hud.getSettingsState() })
 end
 
 function Hud.openSettings()
@@ -374,7 +387,7 @@ function Hud.openSettings()
 
     Hud.settings.open = true
     SetNuiFocus(true, true)
-    Hud.sendNui(Hud.actions.settings, { open = true, state = Hud.getSettingsState() }, true)
+    Hud.sendNui(Hud.actions.settings, { open = true, state = Hud.getSettingsState() })
 end
 
 function Hud.resetSettings(showNotification)
@@ -383,6 +396,7 @@ function Hud.resetSettings(showNotification)
     DeleteResourceKvp(kvpPrefix .. 'enabled')
     DeleteResourceKvp(kvpPrefix .. 'location')
     DeleteResourceKvp(kvpPrefix .. 'minimalMode')
+    DeleteResourceKvp(kvpPrefix .. 'raceMode')
     DeleteResourceKvp(kvpPrefix .. 'position')
     DeleteResourceKvp(kvpPrefix .. 'palette')
     DeleteResourceKvp(kvpPrefix .. 'opacity')
@@ -390,16 +404,19 @@ function Hud.resetSettings(showNotification)
     Hud.settings.enabled = Config.DefaultSettings.enabled
     Hud.settings.location = Config.DefaultSettings.location
     Hud.settings.minimal = Config.DefaultSettings.minimal
+    Hud.settings.raceMode = Config.DefaultSettings.raceMode
     Hud.settings.position = Config.DefaultSettings.position
     Hud.settings.palette = Config.DefaultSettings.palette
     Hud.settings.opacity = Config.DefaultSettings.opacity
     Hud.statusRevealUntil = 0
 
-    Hud.publishPosition()
-    Hud.publishPalette()
     Hud.sendConfig()
     Hud.sendVisibility(true)
     Hud.syncSettingsNui()
+
+    if Hud.vehicle and Hud.vehicle.reapplyNativeHud then
+        Hud.vehicle.reapplyNativeHud(90)
+    end
 
     if showNotification then
         Hud.feedback({ title = 'HUD', description = locale('settings_reset'), type = 'success' })
@@ -415,8 +432,6 @@ function Hud.refreshLocal(showNotification)
     Hud.clearNuiState()
     Hud.sendLocale()
     Hud.sendConfig()
-    Hud.publishPosition()
-    Hud.publishPalette()
     Hud.sendVisibility(true)
     Hud.syncSettingsNui()
 
@@ -452,6 +467,12 @@ RegisterNUICallback('hudSettingsAction', function(data, callback)
         else
             Hud.setMinimal(data.value == 'minimal', false)
         end
+    elseif action == 'setVehicleMode' then
+        if data.value ~= 'normal' and data.value ~= 'race' then
+            ok = false
+        else
+            Hud.setRaceMode(data.value == 'race', false)
+        end
     elseif action == 'setPosition' then
         ok = Hud.setPosition(data.value, false)
     elseif action == 'setPalette' then
@@ -469,7 +490,8 @@ RegisterNUICallback('hudSettingsAction', function(data, callback)
     callback({ ok = ok, state = Hud.getSettingsState() })
 end)
 
-RegisterNUICallback('hudStatusLayout', function(data, callback)
+-- Retained as a no-op compatibility endpoint for older bundled NUI builds.
+RegisterNUICallback('hudStatusLayout', function(_, callback)
     callback({ ok = true })
 end)
 
@@ -480,6 +502,8 @@ RegisterCommand('hudayar', function() Hud.openSettings() end, false)
 RegisterCommand('hudsettings', function() Hud.openSettings() end, false)
 RegisterCommand('hud', function() Hud.setVisibility(not Hud.settings.enabled, true) end, false)
 RegisterCommand('hudminimal', function() Hud.setMinimal(not Hud.settings.minimal, true) end, false)
+RegisterCommand('hudrace', function() Hud.setRaceMode(not Hud.settings.raceMode, true) end, false)
+RegisterCommand('hudyaris', function() Hud.setRaceMode(not Hud.settings.raceMode, true) end, false)
 local function positionCommand(_, args)
     local requested = args[1] and positionAliases[string.lower(args[1])] or nil
     if args[1] and not requested then
@@ -505,14 +529,14 @@ RegisterCommand('hudposition', positionCommand, false)
 local keybindName = resource:gsub('[^%w_]', '_')
 lib.addKeybind({
     name = ('%s_toggle'):format(keybindName),
-    description = locale('toggle_hud'),
+    description = ('[HUD] %s'):format(locale('toggle_hud')),
     defaultKey = Config.Keybinds.toggle,
     onPressed = function() Hud.setVisibility(not Hud.settings.enabled, true) end
 })
 
 lib.addKeybind({
     name = ('%s_peek'):format(keybindName),
-    description = locale('peek_status'),
+    description = ('[HUD] %s'):format(locale('peek_status')),
     defaultKey = Config.Keybinds.peek,
     onPressed = function()
         if Hud.settings.enabled and Hud.state.loaded then
