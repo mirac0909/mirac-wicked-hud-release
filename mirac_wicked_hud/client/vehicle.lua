@@ -43,6 +43,7 @@ local function configureMinimap()
     SetMinimapComponentPosition('minimap', 'L', 'B', -0.0045, -0.0220, 0.1500, 0.1889)
     SetMinimapComponentPosition('minimap_mask', 'L', 'B', 0.0200, 0.0320, 0.1110, 0.1590)
     SetMinimapComponentPosition('minimap_blur', 'L', 'B', -0.0300, 0.0220, 0.2660, 0.2370)
+    SetRadarZoom(Config.Minimap.zoom)
 end
 
 local function restoreMinimapLayout()
@@ -91,10 +92,10 @@ local function isRadarAllowed(inVehicle)
     return inVehicle
 end
 
-local function readNitro(vehicle, state)
+local function readNitro(vehicle)
     if not Config.Nitro.enabled then return false end
 
-    state = state or Entity(vehicle).state
+    local state = Entity(vehicle).state
     if not state then return false end
 
     for index = 1, #Config.Nitro.stateBags do
@@ -125,16 +126,14 @@ local function normalizeSeatbeltValue(value)
     if value == false or value == 0 or value == '0' or value == 'false' then return false end
 end
 
-local function readSeatbelt(vehicle, state)
+local function readSeatbelt(vehicle)
     if not supportsSeatbelt(vehicle) then return false end
     if Hud.vehicle.seatbeltOverride ~= nil then return Hud.vehicle.seatbeltOverride end
 
-    state = state or Entity(vehicle).state
-    if state then
-        for index = 1, #Config.Seatbelt.stateBags do
-            local value = normalizeSeatbeltValue(state[Config.Seatbelt.stateBags[index]])
-            if value ~= nil then return value end
-        end
+    local state = Entity(vehicle).state
+    for index = 1, #Config.Seatbelt.stateBags do
+        local value = normalizeSeatbeltValue(state[Config.Seatbelt.stateBags[index]])
+        if value ~= nil then return value end
     end
 
     return Hud.vehicle.seatbelt
@@ -195,7 +194,7 @@ local function playNitroSound(kind)
     return true
 end
 
-local function updateNitroSounds(vehicle, level, state)
+local function updateNitroSounds(vehicle, level)
     if level == false then
         nitroSoundVehicle = nil
         previousNitroLevel = nil
@@ -204,8 +203,7 @@ local function updateNitroSounds(vehicle, level, state)
         return
     end
 
-    state = state or Entity(vehicle).state
-    local rawActive = state and state.nitroActive or nil
+    local rawActive = Entity(vehicle).state.nitroActive
     local active = rawActive == true
 
     if nitroSoundVehicle ~= vehicle then
@@ -327,19 +325,31 @@ local function updateVehicleWarningSounds(vehicle, fuel, engine)
     end
 end
 
+local function isEmergencySignalActive(vehicle)
+    local lightsState = IsVehicleSirenOn(vehicle)
+    local audioState = false
+
+    if type(IsVehicleSirenAudioOn) == 'function' then
+        audioState = IsVehicleSirenAudioOn(vehicle)
+    end
+
+    return lightsState == true or lightsState == 1
+        or audioState == true or audioState == 1
+end
+
 local function vehicleSnapshot(vehicle)
     if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return false end
 
-    local state = Entity(vehicle).state
     local speedKmh = math.max(0, GetEntitySpeed(vehicle) * 3.6)
     local speed = Config.SpeedUnit == 'mph' and speedKmh * 0.621371 or speedKmh
     local gear = GetVehicleCurrentGear(vehicle)
     local rpm = Hud.round((Hud.clamp(GetVehicleCurrentRpm(vehicle), 0, 1) or 0) * 100)
     updateGearShiftSound(vehicle, gear, speed)
-    local nitro = readNitro(vehicle, state)
-    updateNitroSounds(vehicle, nitro, state)
+    local nitro = readNitro(vehicle)
+    updateNitroSounds(vehicle, nitro)
     local nitroValue = false
-    local fuel = Hud.round(Hud.clamp(Hud.Fuel.get(vehicle, state), 0, 100) or 0)
+    local nitroActive = nitro ~= false and Entity(vehicle).state.nitroActive == true
+    local fuel = Hud.round(Hud.clamp(Hud.Fuel.get(vehicle), 0, 100) or 0)
     local engine = Hud.round(Hud.clamp(GetVehicleEngineHealth(vehicle) / 10, 0, 100) or 0)
     if nitro ~= false then nitroValue = Hud.round(nitro) end
     updateVehicleWarningSounds(vehicle, fuel, engine)
@@ -350,8 +360,10 @@ local function vehicleSnapshot(vehicle)
         fuel = fuel,
         engine = engine,
         nitro = nitroValue,
+        nitroActive = nitroActive,
         seatbeltAvailable = supportsSeatbelt(vehicle),
-        seatbelt = readSeatbelt(vehicle, state),
+        seatbelt = readSeatbelt(vehicle),
+        emergencyLights = isEmergencySignalActive(vehicle),
         gear = gear == 0 and (speed < 1 and 'N' or 'R') or tostring(gear)
     }
 end
@@ -419,7 +431,7 @@ local function onVehicleChanged(vehicle)
     else
         Hud.vehicle.warmupFrames = 0
         Hud.vehicle.nativeVitalsGuardFrames = 0
-        Hud.sendNuiUpdate({ vehicle = false })
+        Hud.sendNuiUpdate({ vehicle = false }, true)
         if Config.Minimap.mode ~= 'always' then setRadarVisible(false) end
     end
 end
@@ -500,6 +512,7 @@ CreateThread(function()
             if not vehicle or vehicle == 0 then Hud.sendNuiUpdate({ vehicle = false }) end
             Wait(vehicle and Config.Client.hiddenUpdateInterval or Config.Client.idleVehicleInterval)
         else
+            SetRadarZoom(Config.Minimap.zoom)
             Hud.sendNuiUpdate({ vehicle = vehicleSnapshot(vehicle) })
             Wait(Config.Client.vehicleUpdateInterval)
         end

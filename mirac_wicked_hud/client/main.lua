@@ -38,6 +38,7 @@ local function validateConfig()
         end
 
         if type(Config.Client.nuiDebug) ~= 'boolean' then add('Config.Client.nuiDebug') end
+        if type(Config.Client.enableTestApi) ~= 'boolean' then add('Config.Client.enableTestApi') end
         if type(Config.Client.showOnPause) ~= 'boolean' then add('Config.Client.showOnPause') end
     end
 
@@ -64,9 +65,11 @@ local function clearHud()
     Hud.state.citizenid = nil
     Hud.statusRevealUntil = 0
 
-    Hud.player.clear()
-    Hud.clearNuiState()
     Hud.closeSettings()
+    Hud.player.clear()
+    Hud.sendNuiUpdate({ vehicle = false }, true)
+    Hud.clearNuiState()
+    Hud.sendNui(Hud.actions.settings, { open = false, state = Hud.getSettingsState() }, true)
     Hud.sendNui(Hud.actions.visibility, {
         panelsVisible = false, notificationsVisible = false, textUiVisible = false
     }, true)
@@ -101,6 +104,8 @@ function Hud.initialize(reason)
 
     Hud.sendLocale()
     Hud.sendConfig()
+    Hud.publishPosition()
+    Hud.publishPalette()
     Hud.player.setInitialData(data)
     Hud.sendVisibility(true)
     Hud.vehicle.reapplyNativeHud(180)
@@ -165,6 +170,7 @@ AddEventHandler('onClientResourceStart', function(resourceName)
         local timeout = GetGameTimer() + Config.Client.playerDataWaitTimeout
         Hud.sendLocale()
         Hud.sendConfig()
+        Hud.publishPosition()
 
         -- During a resource restart the client can finish loading a fraction
         -- earlier than the server callback registration. A single failed
