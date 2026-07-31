@@ -10,6 +10,8 @@
   transitions between normal, race, gear, seatbelt and nitro states.
 - Added a race minimap layout with corrected native radar alignment and the
   normal HUD frame design.
+- Added matching top and bottom minimap vignette shading without changing the
+  native radar size or alignment.
 - Added a crash reboot effect synchronized across the vehicle HUD, minimap
   frame and native radar.
 - Improved settings persistence, reset behavior, localization, validation and
