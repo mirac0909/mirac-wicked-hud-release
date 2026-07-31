@@ -6,8 +6,8 @@ local function nativeFuel(vehicle)
     return GetVehicleFuelLevel(vehicle)
 end
 
-local function stateBagFuel(vehicle, state)
-    state = state or Entity(vehicle).state
+local function stateBagFuel(vehicle)
+    local state = Entity(vehicle).state
     return state and state[Config.FuelStateBag] or nil
 end
 
@@ -30,12 +30,12 @@ local function exportFuel(vehicle)
     return ok and value or nil
 end
 
-function Hud.Fuel.get(vehicle, state)
+function Hud.Fuel.get(vehicle)
     if not vehicle or vehicle == 0 then return 0 end
 
     local value
     if Config.FuelSystem == 'statebag' then
-        value = stateBagFuel(vehicle, state)
+        value = stateBagFuel(vehicle)
     elseif Config.FuelSystem == 'export' then
         value = exportFuel(vehicle)
     elseif Config.FuelSystem == 'custom' then
@@ -46,7 +46,7 @@ function Hud.Fuel.get(vehicle, state)
     end
 
     if value == nil then
-        value = stateBagFuel(vehicle, state) or nativeFuel(vehicle)
+        value = stateBagFuel(vehicle) or nativeFuel(vehicle)
         if not warned and Config.Client.nuiDebug then
             warned = true
             lib.print.warn(('[%s] Fuel adapter returned no value; native/statebag fallback is active.'):format(Hud.resource))

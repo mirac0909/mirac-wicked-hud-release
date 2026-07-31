@@ -75,7 +75,7 @@ function Hud.sendLocale()
     Hud.sendNui(Hud.actions.locale, {
         language = GetConvar('ox:locale', 'en'),
         strings = Hud.getNuiLocale()
-    })
+    }, true)
 end
 
 local function safeZonePayload()
@@ -94,6 +94,12 @@ function Hud.getLayoutMetrics()
         safeZoneX = safeZone.x,
         safeZoneY = safeZone.y
     }
+end
+
+function Hud.publishLayoutMetrics()
+end
+
+function Hud.publishPalette()
 end
 
 function Hud.sendConfig()
@@ -121,13 +127,17 @@ function Hud.sendConfig()
         },
         notificationSafetyLimit = Config.Notifications.hardSafetyLimit,
         safeZone = safeZone
-    })
+    }, true)
 
+    Hud.publishLayoutMetrics()
 end
 
 function Hud.syncSettingsNui()
     if not Hud.settings.open then return end
-    Hud.sendNui(Hud.actions.settings, { open = true, state = Hud.getSettingsState() })
+    Hud.sendNui(Hud.actions.settings, { open = true, state = Hud.getSettingsState() }, true)
+end
+
+function Hud.publishPosition()
 end
 
 function Hud.shouldShow()
@@ -136,13 +146,11 @@ function Hud.shouldShow()
     return not IsPauseMenuActive()
 end
 
-function Hud.sendVisibility(force, panelsVisible)
+function Hud.sendVisibility(force)
     local pauseAllowsHud = Config.Client.showOnPause or not IsPauseMenuActive()
     local loaded = Hud.state.loaded and pauseAllowsHud
-    if type(panelsVisible) ~= 'boolean' then panelsVisible = Hud.shouldShow() end
-
     Hud.sendNui(Hud.actions.visibility, {
-        panelsVisible = panelsVisible,
+        panelsVisible = Hud.shouldShow(),
         notificationsVisible = loaded
             and Config.Notifications.enabled
             and (Hud.settings.enabled or Config.Notifications.showWhenHudHidden),
@@ -318,6 +326,7 @@ function Hud.setPosition(position, showNotification)
 
     Hud.settings.position = position
     SetResourceKvp(kvpPrefix .. 'position', position)
+    Hud.publishPosition()
     Hud.sendConfig()
     Hud.syncSettingsNui()
 
@@ -334,6 +343,7 @@ function Hud.setPalette(palette)
 
     Hud.settings.palette = palette
     SetResourceKvp(kvpPrefix .. 'palette', palette)
+    Hud.publishPalette()
     Hud.sendConfig()
     Hud.syncSettingsNui()
     return true
@@ -353,7 +363,7 @@ end
 function Hud.closeSettings()
     Hud.settings.open = false
     SetNuiFocus(false, false)
-    Hud.sendNui(Hud.actions.settings, { open = false, state = Hud.getSettingsState() })
+    Hud.sendNui(Hud.actions.settings, { open = false, state = Hud.getSettingsState() }, true)
 end
 
 function Hud.openSettings()
@@ -364,7 +374,7 @@ function Hud.openSettings()
 
     Hud.settings.open = true
     SetNuiFocus(true, true)
-    Hud.sendNui(Hud.actions.settings, { open = true, state = Hud.getSettingsState() })
+    Hud.sendNui(Hud.actions.settings, { open = true, state = Hud.getSettingsState() }, true)
 end
 
 function Hud.resetSettings(showNotification)
@@ -385,6 +395,8 @@ function Hud.resetSettings(showNotification)
     Hud.settings.opacity = Config.DefaultSettings.opacity
     Hud.statusRevealUntil = 0
 
+    Hud.publishPosition()
+    Hud.publishPalette()
     Hud.sendConfig()
     Hud.sendVisibility(true)
     Hud.syncSettingsNui()
@@ -403,6 +415,8 @@ function Hud.refreshLocal(showNotification)
     Hud.clearNuiState()
     Hud.sendLocale()
     Hud.sendConfig()
+    Hud.publishPosition()
+    Hud.publishPalette()
     Hud.sendVisibility(true)
     Hud.syncSettingsNui()
 
@@ -452,7 +466,11 @@ RegisterNUICallback('hudSettingsAction', function(data, callback)
         ok = false
     end
 
-    callback({ ok = ok })
+    callback({ ok = ok, state = Hud.getSettingsState() })
+end)
+
+RegisterNUICallback('hudStatusLayout', function(data, callback)
+    callback({ ok = true })
 end)
 
 RegisterCommand('hudreset', function() Hud.resetSettings(true) end, false)

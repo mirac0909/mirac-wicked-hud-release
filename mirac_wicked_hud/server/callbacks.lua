@@ -1,8 +1,7 @@
 local requestState = {}
 
 local function clearRequestState(source)
-    source = tonumber(source)
-    if source then requestState[source] = nil end
+    requestState[tonumber(source)] = nil
 end
 
 lib.callback.register(Hud.events.initialData, function(source)
@@ -14,8 +13,7 @@ lib.callback.register(Hud.events.initialData, function(source)
 
     -- This is both a short cache and a real callback throttle: repeated calls
     -- inside the window do not touch qbx_core again.
-    local elapsed = cached and (now - cached.timestamp) or nil
-    if elapsed and elapsed >= 0 and elapsed < Config.Server.initialDataCooldown then
+    if cached and now - cached.timestamp < Config.Server.initialDataCooldown then
         return cached.data and Hud.copy(cached.data) or nil
     end
 
