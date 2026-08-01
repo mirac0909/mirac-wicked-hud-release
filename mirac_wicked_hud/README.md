@@ -5,7 +5,7 @@ Open-source FiveM HUD for **Qbox** using **ox_lib**. The resource keeps framewor
 ## Release
 
 - Resource folder: `mirac_wicked_hud`
-- Version: `1.4.0-beta.1`
+- Version: `1.4.0-beta.2`
 - License: MIT
 - Tested development stack from the supplied server snapshot: qbx_core 1.23.0 and ox_lib 3.39.0
 
@@ -15,7 +15,7 @@ Open-source FiveM HUD for **Qbox** using **ox_lib**. The resource keeps framewor
 - ox_lib callbacks, keybinds, locale, cache and notifications
 - Server-authoritative initial metadata snapshot
 - Health, armour, stamina, hunger and thirst HUD
-- Minimal mode with configurable critical-status reveal behavior
+- Minimal and ultra-minimal modes with configurable critical-status reveal behavior
 - Vehicle speed, gear, fuel, engine and optional nitro display
 - Nitro-aware seatbelt indicator with a configurable built-in toggle
 - Two-stage fuel and engine warning colors with threshold-entry sounds
@@ -23,7 +23,7 @@ Open-source FiveM HUD for **Qbox** using **ox_lib**. The resource keeps framewor
 - Native fuel, state-bag, export and custom fuel adapters
 - GTAV Enhanced voice support without the deprecated Mumble compatibility layer
 - Automatic pma-voice detection and three-level proximity adapter
-- 10 selectable HUD palettes
+- 15 selectable HUD palettes
 - Global HUD opacity setting
 - Top-right, top-left and bottom-right layouts
 - NUI ready queue and recursive patch/deduplication

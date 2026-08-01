@@ -2169,6 +2169,7 @@ body {
 .summary-health { --summary-color: #fb7185 !important; }
 .summary-armour { --summary-color: #60a5fa !important; }
 .summary-stamina { --summary-color: #fbbf24 !important; }
+.summary-oxygen { --summary-color: #22d3ee !important; }
 .summary-hunger { --summary-color: #fb923c !important; }
 .summary-thirst { --summary-color: #45d3e8 !important; }
 
@@ -2409,7 +2410,8 @@ body {
 
 .hud.is-minimal.has-critical-status .status-dock,
 .hud.is-minimal.show-status-values .status-dock,
-.hud.is-minimal.is-status-exiting .status-dock {
+.hud.is-minimal.is-status-exiting .status-dock,
+.hud.is-minimal.has-status-leaving .status-dock {
   display: grid !important;
 }
 
@@ -2506,7 +2508,8 @@ body {
 
 .hud.hud-position-bottom-right.is-minimal.has-critical-status .status-dock,
 .hud.hud-position-bottom-right.is-minimal.show-status-values .status-dock,
-.hud.hud-position-bottom-right.is-minimal.is-status-exiting .status-dock {
+.hud.hud-position-bottom-right.is-minimal.is-status-exiting .status-dock,
+.hud.hud-position-bottom-right.is-minimal.has-status-leaving .status-dock {
   display: flex !important;
 }
 
@@ -2659,6 +2662,7 @@ body {
   max-width: 20px;
   max-height: 20px;
   flex: 0 0 20px;
+  transition: transform 680ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Keep on-foot notifications in a side lane attached to the identity HUD.
@@ -2880,6 +2884,61 @@ body {
   --theme-alt-rgb: 34, 197, 94;
   --theme-text-rgb: 247, 254, 231;
   --theme-muted-rgb: 171, 190, 139;
+}
+
+:root[data-hud-palette="copper"] {
+  --theme-surface-rgb: 12, 13, 16;
+  --theme-surface-soft-rgb: 35, 29, 26;
+  --theme-surface-mid-rgb: 24, 21, 20;
+  --theme-accent-rgb: 210, 143, 92;
+  --theme-accent-strong-rgb: 180, 104, 57;
+  --theme-alt-rgb: 236, 190, 143;
+  --theme-text-rgb: 250, 247, 242;
+  --theme-muted-rgb: 180, 165, 151;
+}
+
+:root[data-hud-palette="coral"] {
+  --theme-surface-rgb: 10, 13, 20;
+  --theme-surface-soft-rgb: 34, 40, 56;
+  --theme-surface-mid-rgb: 20, 25, 38;
+  --theme-accent-rgb: 255, 126, 105;
+  --theme-accent-strong-rgb: 232, 80, 75;
+  --theme-alt-rgb: 92, 137, 255;
+  --theme-text-rgb: 248, 250, 255;
+  --theme-muted-rgb: 162, 171, 191;
+}
+
+:root[data-hud-palette="petrol"] {
+  --theme-surface-rgb: 7, 19, 21;
+  --theme-surface-soft-rgb: 23, 52, 57;
+  --theme-surface-mid-rgb: 14, 35, 39;
+  --theme-accent-rgb: 70, 201, 185;
+  --theme-accent-strong-rgb: 27, 158, 148;
+  --theme-alt-rgb: 245, 169, 132;
+  --theme-text-rgb: 242, 252, 251;
+  --theme-muted-rgb: 157, 186, 184;
+}
+
+:root[data-hud-palette="orchid"] {
+  --theme-surface-rgb: 13, 14, 21;
+  --theme-surface-soft-rgb: 41, 40, 58;
+  --theme-surface-mid-rgb: 25, 24, 38;
+  --theme-accent-rgb: 202, 166, 255;
+  --theme-accent-strong-rgb: 162, 112, 245;
+  --theme-alt-rgb: 164, 201, 226;
+  --theme-text-rgb: 250, 248, 255;
+  --theme-muted-rgb: 170, 165, 191;
+}
+
+:root[data-hud-palette="sage"] {
+  --theme-surface-rgb: 16, 21, 18;
+  --theme-surface-soft-rgb: 42, 49, 44;
+  --theme-surface-mid-rgb: 28, 36, 32;
+  --theme-accent-rgb: 169, 184, 145;
+  --theme-accent-strong-rgb: 126, 146, 108;
+  --theme-alt-rgb: 205, 190, 162;
+  --theme-text-rgb: 246, 248, 244;
+  --theme-muted-rgb: 172, 181, 170;
 }
 
 /* Global HUD chrome */
@@ -3109,6 +3168,154 @@ body {
 .palette-swatch-lime i:nth-child(1) { background: #0e1406; }
 .palette-swatch-lime i:nth-child(2) { background: #a3e635; }
 .palette-swatch-lime i:nth-child(3) { background: #22c55e; }
+.palette-swatch-copper i:nth-child(1) { background: #0c0d10; }
+.palette-swatch-copper i:nth-child(2) { background: #d28f5c; }
+.palette-swatch-copper i:nth-child(3) { background: #ecbe8f; }
+.palette-swatch-coral i:nth-child(1) { background: #0a0d14; }
+.palette-swatch-coral i:nth-child(2) { background: #ff7e69; }
+.palette-swatch-coral i:nth-child(3) { background: #5c89ff; }
+.palette-swatch-petrol i:nth-child(1) { background: #071315; }
+.palette-swatch-petrol i:nth-child(2) { background: #46c9b9; }
+.palette-swatch-petrol i:nth-child(3) { background: #f5a984; }
+.palette-swatch-orchid i:nth-child(1) { background: #0d0e15; }
+.palette-swatch-orchid i:nth-child(2) { background: #caa6ff; }
+.palette-swatch-orchid i:nth-child(3) { background: #a4c9e2; }
+.palette-swatch-sage i:nth-child(1) { background: #101512; }
+.palette-swatch-sage i:nth-child(2) { background: #a9b891; }
+.palette-swatch-sage i:nth-child(3) { background: #cdbea2; }
+
+/* Ultra minimal keeps all HUD behavior but reduces the on-foot identity HUD to
+   live status lines and the existing voice indicator. Critical status cards
+   continue to use the shared threshold/reveal system. */
+.hud:not(.is-vehicle) .identity-summary > .summary-oxygen {
+  display: none;
+}
+
+.settings-display-modes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal .identity-panel {
+  width: 294px;
+  min-width: 294px;
+  max-width: 294px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal .identity-panel::before,
+.hud:not(.is-vehicle).is-ultra-minimal .identity-panel::after,
+.hud:not(.is-vehicle).is-ultra-minimal .server-mark,
+.hud:not(.is-vehicle).is-ultra-minimal .identity-divider,
+.hud:not(.is-vehicle).is-ultra-minimal .identity-item {
+  display: none !important;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal .identity-summary {
+  top: 50%;
+  right: 52px;
+  bottom: auto;
+  left: 0;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  height: 5px;
+  transform: translateY(-50%);
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal .identity-summary > span {
+  display: block;
+  height: 5px;
+  border-radius: 2px;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal .identity-summary > span.is-hidden {
+  display: none;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal .voice {
+  position: absolute;
+  top: 3px;
+  right: 0;
+  width: 40px;
+  height: 38px;
+  flex-basis: 40px;
+  border: 0;
+  border-left: 0;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal .voice.is-talking {
+  background: transparent;
+  box-shadow: none;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal #voice > svg {
+  transform: translateY(-15px);
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal .voice-range {
+  position: absolute;
+  top: 17px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Ultra minimal uses true corner anchors for every selectable HUD position. */
+.hud:not(.is-vehicle).is-ultra-minimal:not(.hud-position-top-left):not(.hud-position-bottom-right) .identity-panel {
+  top: calc(var(--safe-zone-y) + 8px);
+  right: calc(var(--safe-zone-x) + 8px);
+  bottom: auto;
+  left: auto;
+  transform-origin: right top;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal:not(.hud-position-top-left):not(.hud-position-bottom-right) .status-dock {
+  top: calc(var(--safe-zone-y) + 60px);
+  right: calc(var(--safe-zone-x) + 8px);
+  bottom: auto;
+  left: auto;
+  transform-origin: right top;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal.hud-position-top-left .identity-panel {
+  top: calc(var(--safe-zone-y) + 8px);
+  right: auto;
+  bottom: auto;
+  left: calc(var(--safe-zone-x) + 8px);
+  transform-origin: left top;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal.hud-position-top-left .status-dock {
+  top: calc(var(--safe-zone-y) + 60px);
+  right: auto;
+  bottom: auto;
+  left: calc(var(--safe-zone-x) + 8px);
+  transform-origin: left top;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal.hud-position-bottom-right .identity-panel {
+  top: auto;
+  right: calc(var(--safe-zone-x) + 8px);
+  bottom: calc(var(--safe-zone-y) + 8px);
+  left: auto;
+  transform-origin: right bottom;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal.hud-position-bottom-right .status-dock {
+  top: auto;
+  right: calc(var(--safe-zone-x) + 8px);
+  bottom: calc(var(--safe-zone-y) + 60px);
+  left: auto;
+  transform-origin: right bottom;
+}
 
 
 @media (max-width: 560px) {
@@ -3695,7 +3902,7 @@ body {
 }
 
 .hud.is-vehicle.is-vehicle-entering:not(.is-panels-hidden) .vehicle-panel {
-  animation: vehicle-panel-reveal 760ms var(--card-enter-easing) both;
+  animation: vehicle-panel-enter-smooth 880ms linear both;
 }
 
 .hud.is-vehicle.is-vehicle-entering:not(.is-panels-hidden) .vehicle-accent {
@@ -3716,6 +3923,211 @@ body {
 
 .hud.is-vehicle.is-vehicle-exiting .vehicle-panel {
   animation: vehicle-panel-reveal 760ms var(--card-exit-easing) both reverse;
+}
+
+/* Vehicle and minimalist foot layouts share the same identity anchor. Keep
+   that anchor fixed and gently hand its visual state over while telemetry
+   leaves, avoiding a blank frame or an artificial sideways movement. */
+.hud.is-minimal.is-vehicle.is-foot-handoff .identity-panel {
+  animation: minimal-shell-handoff 780ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: border-color, box-shadow;
+}
+
+.hud.is-minimal.is-vehicle.is-vehicle-handoff .identity-panel {
+  isolation: isolate;
+  border-color: transparent;
+  background: transparent;
+  animation: minimal-shell-shadow-enter 920ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: box-shadow;
+}
+
+.hud.is-minimal.is-vehicle.is-vehicle-handoff .identity-panel::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  display: block;
+  border: 1px solid rgba(var(--theme-muted-rgb), 0.25);
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(var(--theme-accent-rgb), 0.04), transparent 46%),
+    linear-gradient(145deg, rgba(var(--theme-surface-soft-rgb), 0.97), rgba(var(--theme-surface-rgb), 0.97));
+  box-shadow: 0 15px 36px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  content: '';
+  pointer-events: none;
+  animation: minimal-shell-enter 920ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, filter;
+}
+
+.hud.is-minimal.is-vehicle.is-foot-handoff .identity-panel::after {
+  position: absolute;
+  inset: -1px;
+  display: block;
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.58);
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 22%, rgba(var(--theme-accent-rgb), 0.14) 48%, transparent 72%);
+  content: '';
+  pointer-events: none;
+  animation: minimal-shell-sweep 780ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hud.is-minimal.is-vehicle.is-vehicle-handoff .identity-panel::after {
+  position: absolute;
+  inset: -1px;
+  display: block;
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.58);
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 22%, rgba(var(--theme-accent-rgb), 0.14) 48%, transparent 72%);
+  content: '';
+  pointer-events: none;
+  animation: minimal-shell-sweep 920ms cubic-bezier(0.22, 1, 0.36, 1) reverse both;
+}
+
+.hud.is-minimal.is-vehicle.is-foot-handoff .identity-summary > span {
+  animation: minimal-summary-handoff 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, filter, translate;
+}
+
+.hud.is-minimal.is-vehicle.is-summary-handoff .identity-summary > span {
+  animation: minimal-summary-handoff 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, filter, translate;
+}
+
+.hud.is-minimal.is-vehicle.is-foot-handoff .identity-summary > span:nth-child(2) { animation-delay: 35ms; }
+.hud.is-minimal.is-vehicle.is-foot-handoff .identity-summary > span:nth-child(3) { animation-delay: 70ms; }
+.hud.is-minimal.is-vehicle.is-foot-handoff .identity-summary > span:nth-child(4) { animation-delay: 105ms; }
+.hud.is-minimal.is-vehicle.is-foot-handoff .identity-summary > span:nth-child(5) { animation-delay: 140ms; }
+.hud.is-minimal.is-vehicle.is-foot-handoff .identity-summary > span:nth-child(6) { animation-delay: 175ms; }
+
+.hud.is-minimal.is-vehicle.is-summary-handoff .identity-summary > span:nth-child(1) { animation-delay: 175ms; }
+.hud.is-minimal.is-vehicle.is-summary-handoff .identity-summary > span:nth-child(2) { animation-delay: 140ms; }
+.hud.is-minimal.is-vehicle.is-summary-handoff .identity-summary > span:nth-child(3) { animation-delay: 105ms; }
+.hud.is-minimal.is-vehicle.is-summary-handoff .identity-summary > span:nth-child(4) { animation-delay: 70ms; }
+.hud.is-minimal.is-vehicle.is-summary-handoff .identity-summary > span:nth-child(5) { animation-delay: 35ms; }
+
+.hud.is-minimal.is-vehicle.is-foot-handoff .voice,
+.hud.is-minimal.is-vehicle.is-summary-handoff .voice {
+  animation: minimal-voice-handoff 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, filter, translate;
+}
+
+.hud.is-minimal.is-vehicle.is-foot-handoff .voice-range i,
+.hud.is-minimal.is-vehicle.is-summary-handoff .voice-range i {
+  animation: minimal-voice-dot-handoff 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hud.is-minimal.is-vehicle.is-foot-handoff .voice-range i:nth-child(2),
+.hud.is-minimal.is-vehicle.is-summary-handoff .voice-range i:nth-child(2) { animation-delay: 55ms; }
+
+.hud.is-minimal.is-vehicle.is-foot-handoff .voice-range i:nth-child(3),
+.hud.is-minimal.is-vehicle.is-summary-handoff .voice-range i:nth-child(3) { animation-delay: 110ms; }
+
+@keyframes minimal-shell-handoff {
+  0% {
+    border-color: rgba(var(--theme-muted-rgb), 0.25);
+    box-shadow: 0 15px 36px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  }
+  42% {
+    border-color: rgba(var(--theme-accent-rgb), 0.48);
+    box-shadow: 0 11px 28px rgba(0, 0, 0, 0.3), 0 0 18px rgba(var(--theme-accent-rgb), 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  100% {
+    border-color: rgba(var(--theme-muted-rgb), 0.25);
+    box-shadow: 0 15px 36px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  }
+}
+
+@keyframes minimal-shell-enter {
+  0% {
+    opacity: 0;
+    filter: brightness(0.72) blur(1.5px);
+  }
+  34% {
+    opacity: 0.42;
+    filter: brightness(0.9) blur(0.65px);
+  }
+  72% {
+    opacity: 0.84;
+    filter: brightness(1.04) blur(0);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@keyframes minimal-shell-shadow-enter {
+  0% {
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0), inset 0 1px 0 rgba(255, 255, 255, 0);
+  }
+  46% {
+    box-shadow: 0 7px 18px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  }
+  78% {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.048);
+  }
+  100% {
+    box-shadow: 0 15px 36px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  }
+}
+
+@keyframes minimal-shell-sweep {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0 round 10px);
+  }
+  28% {
+    opacity: 0.82;
+  }
+  72% {
+    opacity: 0.34;
+    clip-path: inset(0 0 0 0 round 10px);
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 0 100% round 10px);
+  }
+}
+
+@keyframes minimal-summary-handoff {
+  0% {
+    opacity: 0.68;
+    filter: brightness(0.9);
+    translate: 0 3px;
+  }
+  68% {
+    opacity: 1;
+    filter: brightness(1.08);
+    translate: 0 -0.5px;
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+    translate: 0 0;
+  }
+}
+
+@keyframes minimal-voice-handoff {
+  0% {
+    opacity: 0.68;
+    filter: brightness(0.9);
+    translate: 0 3px;
+  }
+  68% {
+    opacity: 1;
+    filter: brightness(1.08);
+    translate: 0 -0.5px;
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+    translate: 0 0;
+  }
+}
+
+@keyframes minimal-voice-dot-handoff {
+  0% { filter: brightness(0.72); translate: 0 2px; }
+  72% { filter: brightness(1.2); translate: 0 -0.5px; }
+  100% { filter: none; translate: 0 0; }
 }
 
 .hud.is-vehicle.is-vehicle-exiting .minimap-frame {
@@ -3746,6 +4158,37 @@ body {
     transform: translateY(-1px) scale(1.006);
   }
   to {
+    opacity: var(--hud-opacity);
+    filter: none;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vehicle-panel-enter-smooth {
+  0% {
+    visibility: visible;
+    opacity: 0;
+    filter: blur(2px) brightness(0.78);
+    transform: translateY(10px) scale(0.97);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  20% {
+    opacity: 0.14;
+    filter: blur(1.35px) brightness(0.86);
+    transform: translateY(7px) scale(0.978);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  52% {
+    opacity: 0.58;
+    filter: blur(0.45px) brightness(0.96);
+    transform: translateY(2.5px) scale(0.992);
+  }
+  78% {
+    opacity: var(--hud-opacity);
+    filter: blur(0) brightness(1.025);
+    transform: translateY(-0.5px) scale(1.002);
+  }
+  100% {
     opacity: var(--hud-opacity);
     filter: none;
     transform: translateY(0) scale(1);

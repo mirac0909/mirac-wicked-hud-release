@@ -4,7 +4,7 @@ game 'gta5'
 name 'Mirac Wicked HUD'
 author 'Mirac'
 description 'Open-source Qbox HUD with ox_lib, secure server data, themes, vehicle HUD and configurable adapters'
-version '1.4.0-beta.1'
+version '1.4.0-beta.2'
 license 'MIT'
 nui_callback_strict_mode 'true'
 

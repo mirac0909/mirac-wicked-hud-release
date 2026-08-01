@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0-beta.2 — 2026-08-01
+
+- Added an ultra-minimal pedestrian HUD mode with a compact status layout and
+  the `/hudultra` command.
+- Added five palettes: Copper, Coral, Petrol, Orchid and Sage.
+- Added smooth, bidirectional pedestrian/vehicle transitions for the HUD
+  frame, segmented status bars and microphone indicator.
+- Improved critical-status card entry and exit behavior, including the 10%
+  pedestrian and 50% vehicle reveal thresholds.
+- Fixed status cards remaining visible during vehicle exit and values not
+  returning to their normal pedestrian presentation after vehicle entry.
+
 ## 1.4.0-beta.1 — 2026-07-31
 
 - Added a persistent race vehicle HUD selectable from settings or with
