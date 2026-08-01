@@ -10,7 +10,7 @@
 [![FiveM](https://img.shields.io/badge/FiveM-Cerulean-f40552)](https://fivem.net/)
 [![Framework](https://img.shields.io/badge/Framework-Qbox-4f46e5)](https://github.com/Qbox-project/qbx_core)
 [![Dependency](https://img.shields.io/badge/Dependency-ox__lib-22c55e)](https://github.com/overextended/ox_lib)
-[![Version](https://img.shields.io/badge/version-1.4.0--beta.1-f59e0b)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.0--beta.2-f59e0b)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-0f172a)](LICENSE)
 
 A modern, configurable and open-source FiveM HUD built for Qbox and a
@@ -47,7 +47,7 @@ bridges so server owners can configure integrations without editing the NUI.
 ## Highlights
 
 - Health, armour, stamina, oxygen, hunger and thirst indicators
-- Normal and minimal layouts with critical-status reveal behavior
+- Normal, minimal and ultra-minimal layouts with critical-status reveal behavior
 - Vehicle speed, RPM-aware gear ring, fuel, engine, nitro and seatbelt HUD
 - Synchronized minimap and vehicle-panel transitions
 - Native, state-bag, export and custom fuel adapters
@@ -55,7 +55,7 @@ bridges so server owners can configure integrations without editing the NUI.
 - Whisper, normal and shout indicators with optional shout auto-reset
 - Resource-scoped notifications and single-owner TextUI
 - QB and ESX notification format adapters
-- Ten palettes, global opacity and three HUD positions
+- Fifteen palettes, global opacity and three HUD positions
 - English and Turkish localization
 - Client KVP settings with no additional SQL table
 - Strict NUI callbacks and server-authoritative initial player data

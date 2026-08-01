@@ -204,6 +204,7 @@ exports('getState', function()
         loaded = Hud.state.loaded,
         enabled = Hud.settings.enabled,
         minimal = Hud.settings.minimal,
+        ultraMinimal = Hud.settings.ultraMinimal,
         position = Hud.settings.position,
         citizenid = Hud.state.citizenid
     }

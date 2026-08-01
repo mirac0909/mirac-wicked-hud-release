@@ -42,7 +42,12 @@ Hud.palettes = {
     sakura = true,
     frost = true,
     royal = true,
-    lime = true
+    lime = true,
+    copper = true,
+    coral = true,
+    petrol = true,
+    orchid = true,
+    sage = true
 }
 
 Hud.nuiLocaleKeys = {
@@ -91,6 +96,8 @@ Hud.nuiLocaleKeys = {
     'normal_description',
     'minimal',
     'minimal_description',
+    'ultra_minimal',
+    'ultra_minimal_description',
     'vehicle_hud_mode',
     'vehicle_hud_mode_description',
     'vehicle_mode_normal_description',
@@ -108,6 +115,11 @@ Hud.nuiLocaleKeys = {
     'palette_frost',
     'palette_royal',
     'palette_lime',
+    'palette_copper',
+    'palette_coral',
+    'palette_petrol',
+    'palette_orchid',
+    'palette_sage',
     'opacity_title',
     'opacity_description',
     'hud_position',

@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title data-i18n="document_title">Mirac Wicked HUD</title>
-<link href="style.css?v=187" rel="stylesheet"/>
+<link href="style.css?v=195" rel="stylesheet"/>
 </head>
 <body>
 <main aria-hidden="true" class="hud is-panels-hidden is-transient-hidden" id="app">
@@ -31,6 +31,7 @@
 <span class="summary-health"><i id="summary-health"></i></span>
 <span class="summary-armour"><i id="summary-armour"></i></span>
 <span class="summary-stamina"><i id="summary-stamina"></i></span>
+<span class="summary-oxygen"><i id="summary-oxygen"></i></span>
 <span class="summary-hunger"><i id="summary-hunger"></i></span>
 <span class="summary-thirst"><i id="summary-thirst"></i></span>
 </div>
@@ -204,12 +205,15 @@
 </button>
 <div class="settings-group">
 <div class="settings-group-title"><span data-i18n="display_mode">Display mode</span><small data-i18n="display_mode_description">Status panel behavior</small></div>
-<div aria-label="Display mode" class="settings-segments" data-i18n-aria="display_mode" role="group">
+<div aria-label="Display mode" class="settings-segments settings-display-modes" data-i18n-aria="display_mode" role="group">
 <button class="settings-segment" data-settings-mode="normal" type="button">
 <strong data-i18n="normal">Normal</strong><span data-i18n="normal_description">Detailed panels</span>
 </button>
 <button class="settings-segment" data-settings-mode="minimal" type="button">
 <strong data-i18n="minimal">Minimal</strong><span data-i18n="minimal_description">Live color bars</span>
+</button>
+<button class="settings-segment" data-settings-mode="ultra" type="button">
+<strong data-i18n="ultra_minimal">Ultra Minimal</strong><span data-i18n="ultra_minimal_description">Bars and microphone</span>
 </button>
 </div>
 </div>
@@ -237,6 +241,11 @@
 <button class="palette-choice" data-settings-palette="frost" type="button"><span class="palette-swatch palette-swatch-frost"><i></i><i></i><i></i></span><strong data-i18n="palette_frost">Frost</strong></button>
 <button class="palette-choice" data-settings-palette="royal" type="button"><span class="palette-swatch palette-swatch-royal"><i></i><i></i><i></i></span><strong data-i18n="palette_royal">Royal</strong></button>
 <button class="palette-choice" data-settings-palette="lime" type="button"><span class="palette-swatch palette-swatch-lime"><i></i><i></i><i></i></span><strong data-i18n="palette_lime">Lime</strong></button>
+<button class="palette-choice" data-settings-palette="copper" type="button"><span class="palette-swatch palette-swatch-copper"><i></i><i></i><i></i></span><strong data-i18n="palette_copper">Copper</strong></button>
+<button class="palette-choice" data-settings-palette="coral" type="button"><span class="palette-swatch palette-swatch-coral"><i></i><i></i><i></i></span><strong data-i18n="palette_coral">Coral</strong></button>
+<button class="palette-choice" data-settings-palette="petrol" type="button"><span class="palette-swatch palette-swatch-petrol"><i></i><i></i><i></i></span><strong data-i18n="palette_petrol">Petrol</strong></button>
+<button class="palette-choice" data-settings-palette="orchid" type="button"><span class="palette-swatch palette-swatch-orchid"><i></i><i></i><i></i></span><strong data-i18n="palette_orchid">Orchid</strong></button>
+<button class="palette-choice" data-settings-palette="sage" type="button"><span class="palette-swatch palette-swatch-sage"><i></i><i></i><i></i></span><strong data-i18n="palette_sage">Sage</strong></button>
 </div>
 </div>
 <div class="settings-group settings-opacity-group">
@@ -268,6 +277,6 @@
 <footer class="settings-footer" data-i18n-html="close_hint"><span>ESC</span> or click outside to close</footer>
 </section>
 </div>
-<script src="app.js?v=166"></script>
+<script src="app.js?v=168"></script>
 </body>
 </html>

@@ -34,7 +34,7 @@ const RACE_MODE_SWITCH_OUT_MS = 150;
 const RACE_MODE_SWITCH_IN_MS = 260;
 const VEHICLE_CRASH_EFFECT_MS = 820;
 const HUD_POSITION_CLASSES = ['hud-position-top-right', 'hud-position-top-left', 'hud-position-bottom-right'];
-const HUD_PALETTES = ['ocean', 'emerald', 'amethyst', 'amber', 'graphite', 'ruby', 'sakura', 'frost', 'royal', 'lime'];
+const HUD_PALETTES = ['ocean', 'emerald', 'amethyst', 'amber', 'graphite', 'ruby', 'sakura', 'frost', 'royal', 'lime', 'copper', 'coral', 'petrol', 'orchid', 'sage'];
 let vehicleMode = false;
 let vehicleRevealReady = false;
 let vehicleRevealDelayTimer = null;
@@ -45,6 +45,10 @@ let showAllExitTimer = null;
 let modeSwitching = false;
 let modeSwitchTimer = null;
 let vehicleEntryTimer = null;
+let identityHandoffTimer = null;
+let summaryHandoffTimer = null;
+let summaryLayoutTransition = null;
+let voiceLayoutTransition = null;
 let activeHudPosition = '';
 let activeHudPalette = '';
 let activeRaceMode = null;
@@ -58,6 +62,7 @@ let hudSettingsState = {
   enabled: true,
   location: true,
   minimal: false,
+  ultraMinimal: false,
   raceMode: false,
   position: 'top-right',
   palette: 'ocean',
@@ -87,6 +92,7 @@ const DEFAULT_HUD_STATE = {
 let hudState = { ...DEFAULT_HUD_STATE };
 let hudConfig = {
   minimalMode: false,
+  ultraMinimalMode: false,
   raceMode: false,
   locationVisible: true,
   hudPosition: 'top-right',
@@ -194,7 +200,7 @@ function applyConfig(config = {}) {
     components: { ...hudConfig.components, ...(config.components || {}) }
   };
 
-  if (Object.hasOwn(config, 'minimalMode')) setMinimalMode(Boolean(config.minimalMode));
+  if (Object.hasOwn(config, 'minimalMode') || Object.hasOwn(config, 'ultraMinimalMode')) applyFootDisplayMode();
   if (Object.hasOwn(config, 'raceMode')) setVehicleRaceMode(Boolean(config.raceMode));
   if (Object.hasOwn(config, 'hudPosition')) setHudPosition(config.hudPosition);
   if (Object.hasOwn(config, 'palette')) setHudPalette(config.palette);
@@ -302,7 +308,7 @@ const statuses = {
   oxygen: {
     value: document.getElementById('oxygen-value'),
     bar: document.getElementById('oxygen-bar'),
-    summary: null,
+    summary: document.getElementById('summary-oxygen'),
     card: document.getElementById('oxygen-card'),
     optional: true
   },
@@ -535,6 +541,7 @@ function renderHudSettings(state = {}) {
     enabled: state.enabled !== false,
     location: state.location !== false,
     minimal: Boolean(state.minimal),
+    ultraMinimal: Boolean(state.ultraMinimal),
     raceMode: Boolean(state.raceMode),
     position: ['top-left', 'bottom-right'].includes(state.position) ? state.position : 'top-right',
     palette: HUD_PALETTES.includes(state.palette) ? state.palette : 'ocean',
@@ -548,7 +555,7 @@ function renderHudSettings(state = {}) {
   settingsLocation.classList.toggle('is-active', hudSettingsState.location);
   settingsLocation.setAttribute('aria-pressed', hudSettingsState.location ? 'true' : 'false');
 
-  const activeMode = hudSettingsState.minimal ? 'minimal' : 'normal';
+  const activeMode = hudSettingsState.ultraMinimal ? 'ultra' : (hudSettingsState.minimal ? 'minimal' : 'normal');
   settingsModeButtons.forEach((button) => {
     const active = button.dataset.settingsMode === activeMode;
     button.classList.toggle('is-active', active);
@@ -609,9 +616,17 @@ async function sendSettingsAction(action, value) {
   }
 }
 
-function setMinimalMode(enabled) {
-  app.classList.toggle('is-minimal', enabled);
-  setShowAllStatuses(!enabled);
+function applyFootDisplayMode() {
+  const ultraMinimal = Boolean(hudConfig.ultraMinimalMode);
+  const minimal = Boolean(hudConfig.minimalMode) && !ultraMinimal;
+  app.classList.toggle('is-minimal', minimal || ultraMinimal);
+  app.classList.toggle('is-ultra-minimal', ultraMinimal);
+  STATUS_ORDER.forEach((name) => {
+    const value = statuses[name]?.lastValue;
+    if (Number.isFinite(value)) updateStatus(name, value, false);
+  });
+  syncCriticalStatusState();
+  setShowAllStatuses(!minimal && !ultraMinimal);
   scheduleTopStatusAnchor();
 }
 
@@ -683,6 +698,12 @@ function setHudPosition(position) {
   scheduleTopStatusAnchor();
 }
 
+function syncLeavingStatusState() {
+  const hasLeavingStatus = Object.values(statuses)
+    .some((status) => status.card.classList.contains('is-leaving'));
+  app.classList.toggle('has-status-leaving', hasLeavingStatus);
+}
+
 function clearTransientStatusRows() {
   Object.values(statuses).forEach((status) => {
     window.clearTimeout(status.changeTimer);
@@ -691,14 +712,29 @@ function clearTransientStatusRows() {
     status.exitTimer = null;
     status.card.classList.remove('is-changing', 'is-leaving');
   });
+  syncLeavingStatusState();
 }
 
 function beginStatusExit(status) {
   window.clearTimeout(status.exitTimer);
+  status.exitTimer = null;
+  if (status.card.classList.contains('is-critical')) {
+    status.card.classList.remove('is-leaving');
+    syncLeavingStatusState();
+    return;
+  }
   status.card.classList.add('is-leaving');
+  app.classList.add('has-status-leaving');
   status.exitTimer = window.setTimeout(() => {
+    if (status.card.classList.contains('is-critical')) {
+      status.card.classList.remove('is-leaving');
+      status.exitTimer = null;
+      syncLeavingStatusState();
+      return;
+    }
     status.card.classList.remove('is-leaving');
     status.exitTimer = null;
+    syncLeavingStatusState();
   }, STATUS_EXIT_MS);
 }
 
@@ -743,14 +779,25 @@ function updateStatus(name, rawValue, trackChanges = true) {
     status.summary?.parentElement?.classList.add('is-hidden');
     status.summary?.parentElement?.classList.remove('is-critical', 'is-dropping', 'is-empty');
     status.lastValue = undefined;
+    syncLeavingStatusState();
     return;
   }
 
   const value = Math.round(clamp(rawValue));
   const previousValue = status.lastValue;
   const wasCritical = status.card.classList.contains('is-critical');
-  const isCritical = value <= 50 && !(name === 'armour' && value === 0);
-  const shouldTrackTransientChange = trackChanges && app.classList.contains('is-minimal');
+  const criticalThreshold = app.classList.contains('is-ultra-minimal')
+    && !app.classList.contains('is-vehicle') ? 10 : 50;
+  const isCritical = value <= criticalThreshold && !(name === 'armour' && value === 0);
+  const ultraMinimalFoot = app.classList.contains('is-ultra-minimal')
+    && !app.classList.contains('is-vehicle');
+  const isRecoveringAboveThreshold = ultraMinimalFoot
+    && Number.isFinite(previousValue)
+    && value > previousValue
+    && !isCritical;
+  const shouldTrackTransientChange = trackChanges
+    && app.classList.contains('is-minimal')
+    && !isRecoveringAboveThreshold;
 
   if (isCritical && !wasCritical) {
     primeCriticalIndicatorPhase(status.card);
@@ -771,10 +818,13 @@ function updateStatus(name, rawValue, trackChanges = true) {
     }, STATUS_CHANGE_HOLD_MS);
   } else if (!shouldTrackTransientChange) {
     window.clearTimeout(status.changeTimer);
-    window.clearTimeout(status.exitTimer);
     status.changeTimer = null;
-    status.exitTimer = null;
-    status.card.classList.remove('is-changing', 'is-leaving');
+    status.card.classList.remove('is-changing');
+    if (!status.card.classList.contains('is-leaving')) {
+      window.clearTimeout(status.exitTimer);
+      status.exitTimer = null;
+    }
+    syncLeavingStatusState();
   }
 
   status.lastValue = value;
@@ -783,6 +833,7 @@ function updateStatus(name, rawValue, trackChanges = true) {
   status.card.classList.toggle('is-critical', isCritical);
   status.summary?.parentElement?.classList.toggle('is-critical', isCritical);
   status.summary?.parentElement?.classList.toggle('is-empty', value === 0);
+  if (wasCritical && !isCritical && !showAllStatuses) beginStatusExit(status);
   if (app.classList.contains('is-minimal') && Number.isFinite(previousValue) && value < previousValue && !status.dropTimer) {
     status.summary?.parentElement?.classList.add('is-dropping');
     status.dropTimer = window.setTimeout(() => {
@@ -1110,6 +1161,72 @@ function resetVehicleCrashEffect() {
   app.classList.remove('is-vehicle-crash-reboot');
 }
 
+function animateSummaryLayout(previousRect) {
+  summaryLayoutTransition?.cancel();
+  summaryLayoutTransition = null;
+  if (!identitySummary || !previousRect || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+  const nextRect = identitySummary.getBoundingClientRect();
+  if (!nextRect.width || !nextRect.height) return;
+
+  const offsetX = previousRect.left - nextRect.left;
+  const offsetY = previousRect.top - nextRect.top;
+  const scaleX = previousRect.width / nextRect.width;
+  const scaleY = previousRect.height / nextRect.height;
+  if (Math.abs(offsetX) < 0.5 && Math.abs(offsetY) < 0.5
+    && Math.abs(scaleX - 1) < 0.01 && Math.abs(scaleY - 1) < 0.01) return;
+
+  summaryLayoutTransition = identitySummary.animate([
+    { translate: `${offsetX}px ${offsetY}px`, scale: `${scaleX} ${scaleY}` },
+    { translate: `${offsetX * 0.12}px ${offsetY * 0.12}px`, scale: '1 1', offset: 0.78 },
+    { translate: '0 0', scale: '1 1' }
+  ], {
+    duration: 680,
+    easing: 'cubic-bezier(0.16, 1, 0.3, 1)'
+  });
+  summaryLayoutTransition.addEventListener('finish', () => {
+    summaryLayoutTransition = null;
+  }, { once: true });
+}
+
+function animateVoiceLayout(previousRect) {
+  voiceLayoutTransition?.cancel();
+  voiceLayoutTransition = null;
+  if (!voiceIndicator || !previousRect || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+  const nextRect = voiceIndicator.getBoundingClientRect();
+  if (!nextRect.width || !nextRect.height) return;
+
+  const offsetX = previousRect.left - nextRect.left;
+  const offsetY = previousRect.top - nextRect.top;
+  const scaleX = previousRect.width / nextRect.width;
+  const scaleY = previousRect.height / nextRect.height;
+  if (Math.abs(offsetX) < 0.5 && Math.abs(offsetY) < 0.5
+    && Math.abs(scaleX - 1) < 0.01 && Math.abs(scaleY - 1) < 0.01) return;
+
+  voiceLayoutTransition = voiceIndicator.animate([
+    { translate: `${offsetX}px ${offsetY}px`, scale: `${scaleX} ${scaleY}` },
+    { translate: `${offsetX * 0.12}px ${offsetY * 0.12}px`, scale: '1 1', offset: 0.78 },
+    { translate: '0 0', scale: '1 1' }
+  ], {
+    duration: 680,
+    easing: 'cubic-bezier(0.16, 1, 0.3, 1)'
+  });
+  voiceLayoutTransition.addEventListener('finish', () => {
+    voiceLayoutTransition = null;
+  }, { once: true });
+}
+
+function refreshStatusThresholds() {
+  STATUS_ORDER.forEach((name) => {
+    const status = statuses[name];
+    const value = status?.lastValue;
+    if (!Number.isFinite(value)) return;
+    updateStatus(name, value, false);
+  });
+  syncCriticalStatusState();
+}
+
 function playVehicleCrashEffect() {
   if (!vehicleMode || vehicleExiting || !vehicleRevealReady) return;
 
@@ -1133,7 +1250,7 @@ function updateVehicle(vehicle) {
     window.clearTimeout(vehicleExitTimer);
     vehicleExitTimer = null;
     vehicleExiting = false;
-    app.classList.remove('is-vehicle-exiting');
+    app.classList.remove('is-vehicle-exiting', 'is-foot-handoff');
   }
 
   if (!nextVehicleMode && vehicleMode) {
@@ -1144,13 +1261,18 @@ function updateVehicle(vehicle) {
       vehicleRevealDelayTimer = null;
       vehicleEntryTimer = null;
       app.classList.remove('is-vehicle-reveal-pending', 'is-vehicle-entering');
-      app.classList.add('is-vehicle-exiting');
+      app.classList.add('is-vehicle-exiting', 'is-foot-handoff');
       vehicleExitTimer = window.setTimeout(() => {
+        const summaryStartRect = identitySummary?.getBoundingClientRect();
+        const voiceStartRect = voiceIndicator?.getBoundingClientRect();
         vehicleExitTimer = null;
         vehicleExiting = false;
         vehicleMode = false;
         vehicleRevealReady = false;
-        app.classList.remove('is-vehicle', 'is-vehicle-exiting');
+        app.classList.remove('is-vehicle', 'is-vehicle-exiting', 'is-foot-handoff');
+        refreshStatusThresholds();
+        animateSummaryLayout(summaryStartRect);
+        animateVoiceLayout(voiceStartRect);
         vehiclePanel.classList.add('is-hidden');
         vehicleDetailPanel.classList.add('is-hidden');
         resetVehicleSafetySlot();
@@ -1169,12 +1291,17 @@ function updateVehicle(vehicle) {
     window.clearTimeout(vehicleEntryTimer);
     window.clearTimeout(vehicleRevealDelayTimer);
     window.clearTimeout(vehicleExitTimer);
+    window.clearTimeout(identityHandoffTimer);
+    window.clearTimeout(summaryHandoffTimer);
     vehicleExitTimer = null;
     vehicleExiting = false;
+    identityHandoffTimer = null;
+    summaryHandoffTimer = null;
     showAllExitTimer = null;
     showAllStatuses = false;
     modeSwitching = true;
     app.classList.remove('show-status-values', 'is-status-exiting');
+    app.classList.remove('is-foot-handoff', 'is-vehicle-handoff', 'is-summary-handoff');
     app.classList.add('is-mode-switching');
     modeSwitchTimer = window.setTimeout(() => {
       modeSwitching = false;
@@ -1183,14 +1310,32 @@ function updateVehicle(vehicle) {
     }, MODE_SWITCH_MS);
   }
 
+  const summaryStartRect = modeChanged ? identitySummary?.getBoundingClientRect() : null;
+  const voiceStartRect = modeChanged ? voiceIndicator?.getBoundingClientRect() : null;
   vehicleMode = nextVehicleMode;
   app.classList.toggle('is-vehicle', nextVehicleMode);
+  if (modeChanged && nextVehicleMode) refreshStatusThresholds();
+  if (modeChanged && nextVehicleMode) {
+    animateSummaryLayout(summaryStartRect);
+    animateVoiceLayout(voiceStartRect);
+  }
 
   if (modeChanged) {
     app.classList.remove('is-vehicle-entering', 'is-vehicle-reveal-pending');
     if (nextVehicleMode) {
       vehicleRevealReady = false;
-      app.classList.add('is-vehicle-reveal-pending');
+      app.classList.add('is-vehicle-reveal-pending', 'is-vehicle-handoff');
+      identityHandoffTimer = window.setTimeout(() => {
+        identityHandoffTimer = null;
+        app.classList.remove('is-vehicle-handoff');
+      }, 920);
+      summaryHandoffTimer = window.setTimeout(() => {
+        app.classList.add('is-summary-handoff');
+        summaryHandoffTimer = window.setTimeout(() => {
+          summaryHandoffTimer = null;
+          app.classList.remove('is-summary-handoff');
+        }, 820);
+      }, 680);
       vehicleRevealDelayTimer = window.setTimeout(() => {
         vehicleRevealReady = true;
         vehicleRevealDelayTimer = null;
@@ -1247,7 +1392,11 @@ function update(patch) {
 
   let modeChanged = false;
   if (Object.hasOwn(patch, 'vehicle')) modeChanged = updateVehicle(hudState.vehicle);
-  if (Object.hasOwn(patch, 'minimalMode')) setMinimalMode(Boolean(patch.minimalMode));
+  if (Object.hasOwn(patch, 'minimalMode') || Object.hasOwn(patch, 'ultraMinimalMode')) {
+    hudConfig.minimalMode = Boolean(patch.minimalMode ?? hudConfig.minimalMode);
+    hudConfig.ultraMinimalMode = Boolean(patch.ultraMinimalMode ?? hudConfig.ultraMinimalMode);
+    applyFootDisplayMode();
+  }
   if (Object.hasOwn(patch, 'showAllStatuses')) {
     app.classList.toggle('is-peeking', Boolean(patch.showAllStatuses) && !modeSwitching);
     const normalMode = !app.classList.contains('is-minimal');
@@ -1283,6 +1432,7 @@ function update(patch) {
   const layoutRelevant = hasStatusPatch
     || Object.hasOwn(patch, 'vehicle')
     || Object.hasOwn(patch, 'minimalMode')
+    || Object.hasOwn(patch, 'ultraMinimalMode')
     || Object.hasOwn(patch, 'showAllStatuses')
     || Object.hasOwn(patch, 'temporaryId')
     || Object.hasOwn(patch, 'serverId')
@@ -1555,7 +1705,16 @@ window.addEventListener('message', (event) => {
   }
 
   if (payload.action === 'minimalMode') {
-    setMinimalMode(Boolean(payload.enabled));
+    hudConfig.minimalMode = Boolean(payload.enabled);
+    hudConfig.ultraMinimalMode = false;
+    applyFootDisplayMode();
+    return;
+  }
+
+  if (payload.action === 'ultraMinimalMode') {
+    hudConfig.ultraMinimalMode = Boolean(payload.enabled);
+    if (hudConfig.ultraMinimalMode) hudConfig.minimalMode = false;
+    applyFootDisplayMode();
     return;
   }
 

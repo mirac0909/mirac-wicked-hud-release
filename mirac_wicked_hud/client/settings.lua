@@ -46,6 +46,8 @@ end
 Hud.settings.enabled = readBoolean('enabled', Config.DefaultSettings.enabled)
 Hud.settings.location = readBoolean('location', Config.DefaultSettings.location)
 Hud.settings.minimal = readBoolean('minimalMode', Config.DefaultSettings.minimal)
+Hud.settings.ultraMinimal = readBoolean('ultraMinimalMode', false)
+if Hud.settings.ultraMinimal then Hud.settings.minimal = false end
 Hud.settings.raceMode = readBoolean('raceMode', Config.DefaultSettings.raceMode)
 Hud.settings.position = readPosition()
 Hud.settings.palette = readPalette()
@@ -57,6 +59,7 @@ function Hud.getSettingsState()
         enabled = Hud.settings.enabled,
         location = Hud.settings.location,
         minimal = Hud.settings.minimal,
+        ultraMinimal = Hud.settings.ultraMinimal,
         raceMode = Hud.settings.raceMode,
         position = Hud.settings.position,
         palette = Hud.settings.palette,
@@ -104,6 +107,7 @@ function Hud.sendConfig()
 
     Hud.sendNui(Hud.actions.config, {
         minimalMode = Hud.settings.minimal,
+        ultraMinimalMode = Hud.settings.ultraMinimal,
         raceMode = Hud.settings.raceMode,
         locationVisible = Hud.settings.location,
         hudPosition = Hud.settings.position,
@@ -294,6 +298,10 @@ end
 
 function Hud.setMinimal(enabled, showNotification)
     Hud.settings.minimal = enabled == true
+    if Hud.settings.minimal then
+        Hud.settings.ultraMinimal = false
+        SetResourceKvp(kvpPrefix .. 'ultraMinimalMode', 'false')
+    end
     SetResourceKvp(kvpPrefix .. 'minimalMode', Hud.settings.minimal and 'true' or 'false')
     if Hud.settings.minimal then Hud.statusRevealUntil = 0 end
     Hud.sendConfig()
@@ -303,6 +311,26 @@ function Hud.setMinimal(enabled, showNotification)
         Hud.feedback({
             title = 'HUD',
             description = locale(Hud.settings.minimal and 'minimal_enabled' or 'minimal_disabled'),
+            type = 'inform'
+        })
+    end
+end
+
+function Hud.setUltraMinimal(enabled, showNotification)
+    Hud.settings.ultraMinimal = enabled == true
+    if Hud.settings.ultraMinimal then
+        Hud.settings.minimal = false
+        SetResourceKvp(kvpPrefix .. 'minimalMode', 'false')
+        Hud.statusRevealUntil = 0
+    end
+    SetResourceKvp(kvpPrefix .. 'ultraMinimalMode', Hud.settings.ultraMinimal and 'true' or 'false')
+    Hud.sendConfig()
+    Hud.syncSettingsNui()
+
+    if showNotification then
+        Hud.feedback({
+            title = 'HUD',
+            description = locale(Hud.settings.ultraMinimal and 'ultra_minimal_enabled' or 'ultra_minimal_disabled'),
             type = 'inform'
         })
     end
@@ -396,6 +424,7 @@ function Hud.resetSettings(showNotification)
     DeleteResourceKvp(kvpPrefix .. 'enabled')
     DeleteResourceKvp(kvpPrefix .. 'location')
     DeleteResourceKvp(kvpPrefix .. 'minimalMode')
+    DeleteResourceKvp(kvpPrefix .. 'ultraMinimalMode')
     DeleteResourceKvp(kvpPrefix .. 'raceMode')
     DeleteResourceKvp(kvpPrefix .. 'position')
     DeleteResourceKvp(kvpPrefix .. 'palette')
@@ -404,6 +433,7 @@ function Hud.resetSettings(showNotification)
     Hud.settings.enabled = Config.DefaultSettings.enabled
     Hud.settings.location = Config.DefaultSettings.location
     Hud.settings.minimal = Config.DefaultSettings.minimal
+    Hud.settings.ultraMinimal = false
     Hud.settings.raceMode = Config.DefaultSettings.raceMode
     Hud.settings.position = Config.DefaultSettings.position
     Hud.settings.palette = Config.DefaultSettings.palette
@@ -462,10 +492,15 @@ RegisterNUICallback('hudSettingsAction', function(data, callback)
     elseif action == 'toggleLocation' then
         Hud.setLocationVisible(not Hud.settings.location)
     elseif action == 'setMode' then
-        if data.value ~= 'normal' and data.value ~= 'minimal' then
+        if data.value ~= 'normal' and data.value ~= 'minimal' and data.value ~= 'ultra' then
             ok = false
         else
-            Hud.setMinimal(data.value == 'minimal', false)
+            if data.value == 'ultra' then
+                Hud.setUltraMinimal(true, false)
+            else
+                Hud.setUltraMinimal(false, false)
+                Hud.setMinimal(data.value == 'minimal', false)
+            end
         end
     elseif action == 'setVehicleMode' then
         if data.value ~= 'normal' and data.value ~= 'race' then
@@ -502,6 +537,7 @@ RegisterCommand('hudayar', function() Hud.openSettings() end, false)
 RegisterCommand('hudsettings', function() Hud.openSettings() end, false)
 RegisterCommand('hud', function() Hud.setVisibility(not Hud.settings.enabled, true) end, false)
 RegisterCommand('hudminimal', function() Hud.setMinimal(not Hud.settings.minimal, true) end, false)
+RegisterCommand('hudultra', function() Hud.setUltraMinimal(not Hud.settings.ultraMinimal, true) end, false)
 RegisterCommand('hudrace', function() Hud.setRaceMode(not Hud.settings.raceMode, true) end, false)
 RegisterCommand('hudyaris', function() Hud.setRaceMode(not Hud.settings.raceMode, true) end, false)
 local function positionCommand(_, args)
@@ -627,11 +663,29 @@ end)
 exports('getHudPosition', function() return Hud.settings.position end)
 exports('getHudPalette', function() return Hud.settings.palette end)
 exports('getHudOpacity', function() return Hud.settings.opacity end)
+exports('getHudDisplayMode', function()
+    if Hud.settings.ultraMinimal then return 'ultra' end
+    return Hud.settings.minimal and 'minimal' or 'normal'
+end)
 exports('getHudLayoutMetrics', function() return Hud.getLayoutMetrics() end)
 exports('isHudVisible', function() return Hud.settings.enabled end)
 exports('setHudVisible', function(enabled) Hud.setVisibility(enabled == true, false) end)
 exports('setHudPalette', function(palette) return Hud.setPalette(palette) end)
 exports('setHudOpacity', function(opacity) return Hud.setOpacity(opacity) end)
+exports('setHudDisplayMode', function(mode)
+    if mode == 'ultra' then Hud.setUltraMinimal(true, false) return true end
+    if mode == 'minimal' then
+        Hud.setUltraMinimal(false, false)
+        Hud.setMinimal(true, false)
+        return true
+    end
+    if mode == 'normal' then
+        Hud.setUltraMinimal(false, false)
+        Hud.setMinimal(false, false)
+        return true
+    end
+    return false
+end)
 exports('notify', function(data) return Hud.notify(data) end)
 exports('notifyQB', function(text, notificationType, duration, title)
     return qbNotification(text, notificationType, duration, title, GetInvokingResource())
