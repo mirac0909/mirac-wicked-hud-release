@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0-beta.2 — 2026-08-01
+## 1.4.0-beta.2 — 2026-08-02
 
 - Added an ultra-minimal pedestrian HUD mode with a compact status layout and
   the `/hudultra` command.
