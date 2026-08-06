@@ -2409,6 +2409,7 @@ body {
 }
 
 .hud.is-minimal.has-critical-status .status-dock,
+.hud.is-minimal.has-status-changing .status-dock,
 .hud.is-minimal.show-status-values .status-dock,
 .hud.is-minimal.is-status-exiting .status-dock,
 .hud.is-minimal.has-status-leaving .status-dock {
@@ -2507,6 +2508,7 @@ body {
 }
 
 .hud.hud-position-bottom-right.is-minimal.has-critical-status .status-dock,
+.hud.hud-position-bottom-right.is-minimal.has-status-changing .status-dock,
 .hud.hud-position-bottom-right.is-minimal.show-status-values .status-dock,
 .hud.hud-position-bottom-right.is-minimal.is-status-exiting .status-dock,
 .hud.hud-position-bottom-right.is-minimal.has-status-leaving .status-dock {
@@ -2527,6 +2529,15 @@ body {
 .hud.hud-position-bottom-right.show-status-values .status:not(.is-hidden),
 .hud.hud-position-bottom-right .status.is-changing:not(.is-hidden) {
   animation-name: bottom-status-enter;
+}
+
+/* If a fresh fill update arrives during the closing motion, keep the card in
+   place instead of replaying its entry animation and producing a visual blink. */
+.hud .status.is-changing.is-resuming:not(.is-hidden) {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+  animation: none !important;
 }
 
 .hud.hud-position-bottom-right .status.is-leaving:not(.is-hidden),
@@ -2743,7 +2754,7 @@ body {
 }
 
 /* A side notification must not force an otherwise collapsed minimal status dock open. */
-.hud.is-minimal.has-hud-notifications:not(.has-critical-status):not(.show-status-values):not(.is-status-exiting) .status-dock {
+.hud.is-minimal.has-hud-notifications:not(.has-critical-status):not(.has-status-changing):not(.show-status-values):not(.is-status-exiting) .status-dock {
   display: none !important;
 }
 
@@ -3320,6 +3331,23 @@ body {
   bottom: calc(var(--safe-zone-y) + 60px);
   left: auto;
   transform-origin: right bottom;
+}
+
+/* Ultra minimal ignores ordinary value changes and reveals cards only once a
+   status reaches its dedicated critical threshold. Keep these selectors after
+   the position variants so collapsed minimal layout rules cannot mask them. */
+.hud:not(.is-vehicle).is-ultra-minimal.has-critical-status .status-dock:not(.is-component-disabled) {
+  display: grid !important;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal.hud-position-bottom-right.has-critical-status .status-dock:not(.is-component-disabled) {
+  display: flex !important;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal.has-critical-status .status.is-critical:not(.is-hidden) {
+  display: grid !important;
+  visibility: visible;
+  opacity: 1;
 }
 
 

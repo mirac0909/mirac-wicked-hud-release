@@ -27,6 +27,7 @@ const settingsCloseButtons = [...document.querySelectorAll('[data-settings-close
 // Keep a changing status mounted until its value has genuinely settled.
 // This prevents repeated close/reopen motion around zero and during recovery.
 const STATUS_CHANGE_HOLD_MS = 2800;
+const STATUS_FILL_HOLD_MS = 5000;
 const STATUS_EXIT_MS = 320;
 const STATUS_EXIT_STAGGER_MS = 225;
 const MODE_SWITCH_MS = 220;
@@ -704,20 +705,28 @@ function syncLeavingStatusState() {
   app.classList.toggle('has-status-leaving', hasLeavingStatus);
 }
 
+function syncChangingStatusState() {
+  const hasChangingStatus = Object.values(statuses)
+    .some((status) => status.card.classList.contains('is-changing'));
+  app.classList.toggle('has-status-changing', hasChangingStatus);
+}
+
 function clearTransientStatusRows() {
   Object.values(statuses).forEach((status) => {
     window.clearTimeout(status.changeTimer);
     window.clearTimeout(status.exitTimer);
     status.changeTimer = null;
     status.exitTimer = null;
-    status.card.classList.remove('is-changing', 'is-leaving');
+    status.card.classList.remove('is-changing', 'is-leaving', 'is-resuming');
   });
   syncLeavingStatusState();
+  syncChangingStatusState();
 }
 
 function beginStatusExit(status) {
   window.clearTimeout(status.exitTimer);
   status.exitTimer = null;
+  status.card.classList.remove('is-resuming');
   if (status.card.classList.contains('is-critical')) {
     status.card.classList.remove('is-leaving');
     syncLeavingStatusState();
@@ -774,12 +783,13 @@ function updateStatus(name, rawValue, trackChanges = true) {
     status.exitTimer = null;
     status.dropTimer = null;
     status.card.classList.add('is-hidden');
-    status.card.classList.remove('is-changing', 'is-leaving', 'is-critical');
+    status.card.classList.remove('is-changing', 'is-leaving', 'is-resuming', 'is-critical');
     status.card.style.removeProperty('--critical-pulse-delay');
     status.summary?.parentElement?.classList.add('is-hidden');
     status.summary?.parentElement?.classList.remove('is-critical', 'is-dropping', 'is-empty');
     status.lastValue = undefined;
     syncLeavingStatusState();
+    syncChangingStatusState();
     return;
   }
 
@@ -787,9 +797,12 @@ function updateStatus(name, rawValue, trackChanges = true) {
   const previousValue = status.lastValue;
   const wasCritical = status.card.classList.contains('is-critical');
   const criticalThreshold = app.classList.contains('is-ultra-minimal')
-    && !app.classList.contains('is-vehicle') ? 10 : 50;
+    && !app.classList.contains('is-vehicle') ? 20 : 50;
   const isCritical = value <= criticalThreshold && !(name === 'armour' && value === 0);
   const ultraMinimalFoot = app.classList.contains('is-ultra-minimal')
+    && !app.classList.contains('is-vehicle');
+  const standardMinimalFoot = app.classList.contains('is-minimal')
+    && !ultraMinimalFoot
     && !app.classList.contains('is-vehicle');
   const isRecoveringAboveThreshold = ultraMinimalFoot
     && Number.isFinite(previousValue)
@@ -797,35 +810,42 @@ function updateStatus(name, rawValue, trackChanges = true) {
     && !isCritical;
   const shouldTrackTransientChange = trackChanges
     && app.classList.contains('is-minimal')
+    && (!ultraMinimalFoot || isCritical)
     && !isRecoveringAboveThreshold;
 
   if (isCritical && !wasCritical) {
     primeCriticalIndicatorPhase(status.card);
   }
-
   if (shouldTrackTransientChange && Number.isFinite(status.lastValue) && status.lastValue !== value) {
+    const wasLeaving = status.card.classList.contains('is-leaving');
+    const holdDuration = standardMinimalFoot && value > previousValue
+      ? STATUS_FILL_HOLD_MS
+      : STATUS_CHANGE_HOLD_MS;
     window.clearTimeout(status.exitTimer);
     status.exitTimer = null;
     status.card.classList.remove('is-leaving');
     status.card.classList.add('is-changing');
+    if (standardMinimalFoot && wasLeaving) status.card.classList.add('is-resuming');
     window.clearTimeout(status.changeTimer);
     status.changeTimer = window.setTimeout(() => {
-      status.card.classList.remove('is-changing');
+      status.card.classList.remove('is-changing', 'is-resuming');
       status.changeTimer = null;
       if (!status.card.classList.contains('is-critical') && !showAllStatuses) {
         beginStatusExit(status);
       }
-    }, STATUS_CHANGE_HOLD_MS);
+      syncChangingStatusState();
+    }, holdDuration);
   } else if (!shouldTrackTransientChange) {
     window.clearTimeout(status.changeTimer);
     status.changeTimer = null;
-    status.card.classList.remove('is-changing');
+    status.card.classList.remove('is-changing', 'is-resuming');
     if (!status.card.classList.contains('is-leaving')) {
       window.clearTimeout(status.exitTimer);
       status.exitTimer = null;
     }
     syncLeavingStatusState();
   }
+  syncChangingStatusState();
 
   status.lastValue = value;
   status.card.classList.remove('is-hidden');
@@ -833,7 +853,10 @@ function updateStatus(name, rawValue, trackChanges = true) {
   status.card.classList.toggle('is-critical', isCritical);
   status.summary?.parentElement?.classList.toggle('is-critical', isCritical);
   status.summary?.parentElement?.classList.toggle('is-empty', value === 0);
-  if (wasCritical && !isCritical && !showAllStatuses) beginStatusExit(status);
+  if (wasCritical && !isCritical && !showAllStatuses
+    && !status.card.classList.contains('is-changing')) {
+    beginStatusExit(status);
+  }
   if (app.classList.contains('is-minimal') && Number.isFinite(previousValue) && value < previousValue && !status.dropTimer) {
     status.summary?.parentElement?.classList.add('is-dropping');
     status.dropTimer = window.setTimeout(() => {
