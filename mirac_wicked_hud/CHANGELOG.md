@@ -11,6 +11,8 @@
   pedestrian and 50% vehicle reveal thresholds.
 - Fixed status cards remaining visible during vehicle exit and values not
   returning to their normal pedestrian presentation after vehicle entry.
+- Fixed the ultra-minimal microphone being clipped while keeping its voice
+  range dots aligned with the oxygen status line.
 
 ## 1.4.0-beta.1 — 2026-07-31
 

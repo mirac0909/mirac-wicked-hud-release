@@ -3250,6 +3250,11 @@ body {
   border-radius: 9px;
   background: transparent;
   box-shadow: none;
+  overflow: visible;
+}
+
+.hud:not(.is-vehicle).is-ultra-minimal #voice {
+  overflow: visible;
 }
 
 .hud:not(.is-vehicle).is-ultra-minimal .voice.is-talking {
