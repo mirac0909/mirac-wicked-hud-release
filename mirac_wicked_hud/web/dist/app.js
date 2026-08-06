@@ -34,6 +34,7 @@ const MODE_SWITCH_MS = 220;
 const RACE_MODE_SWITCH_OUT_MS = 150;
 const RACE_MODE_SWITCH_IN_MS = 260;
 const VEHICLE_CRASH_EFFECT_MS = 820;
+const SETTINGS_REQUEST_TIMEOUT_MS = 5000;
 const HUD_POSITION_CLASSES = ['hud-position-top-right', 'hud-position-top-left', 'hud-position-bottom-right'];
 const HUD_PALETTES = ['ocean', 'emerald', 'amethyst', 'amber', 'graphite', 'ruby', 'sakura', 'frost', 'royal', 'lime', 'copper', 'coral', 'petrol', 'orchid', 'sage'];
 let vehicleMode = false;
@@ -56,6 +57,9 @@ let activeRaceMode = null;
 let raceModeSwitchTimer = null;
 let vehicleCrashEffectTimer = null;
 let settingsRequestPending = false;
+let settingsRequestController = null;
+let settingsQueueGeneration = 0;
+const settingsActionQueue = [];
 const rootStyleCache = new Map();
 const appStyleCache = new Map();
 const hudNotificationRecords = new Map();
@@ -596,25 +600,66 @@ function setSettingsVisible(open, state) {
   settingsPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
 }
 
-async function sendSettingsAction(action, value) {
-  if (settingsRequestPending) return;
-  settingsRequestPending = true;
-  settingsPanel.classList.add('is-busy');
+function setSettingsBusy(busy) {
+  settingsPanel.classList.toggle('is-busy', busy);
+  settingsPanel.setAttribute('aria-busy', busy ? 'true' : 'false');
+}
 
-  try {
-    const response = await fetch(`https://${GetParentResourceName()}/hudSettingsAction`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-      body: JSON.stringify({ action, value })
-    });
-    const result = await response.json();
-    if (result?.state) renderHudSettings(result.state);
-  } catch (error) {
-    console.warn('HUD settings action failed', error);
-  } finally {
-    settingsRequestPending = false;
-    settingsPanel.classList.remove('is-busy');
+function clearSettingsActionQueue() {
+  settingsQueueGeneration += 1;
+  settingsActionQueue.length = 0;
+  settingsRequestController?.abort();
+  settingsRequestController = null;
+  settingsRequestPending = false;
+  setSettingsBusy(false);
+}
+
+async function processSettingsActions() {
+  if (settingsRequestPending || !settingsActionQueue.length) return;
+  const generation = settingsQueueGeneration;
+  settingsRequestPending = true;
+  setSettingsBusy(true);
+
+  while (settingsActionQueue.length && generation === settingsQueueGeneration) {
+    const request = settingsActionQueue.shift();
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), SETTINGS_REQUEST_TIMEOUT_MS);
+    settingsRequestController = controller;
+
+    try {
+      const response = await fetch(`https://${GetParentResourceName()}/hudSettingsAction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+        body: JSON.stringify(request),
+        signal: controller.signal
+      });
+      const result = await response.json();
+      if (result?.state) renderHudSettings(result.state);
+    } catch (error) {
+      if (error?.name !== 'AbortError') console.warn('HUD settings action failed', error);
+      else console.warn('HUD settings action timed out');
+    } finally {
+      window.clearTimeout(timeout);
+      if (settingsRequestController === controller) settingsRequestController = null;
+    }
   }
+
+  if (generation === settingsQueueGeneration) {
+    settingsRequestPending = false;
+    setSettingsBusy(false);
+  }
+}
+
+function sendSettingsAction(action, value) {
+  const coalescedActions = new Set(['setMode', 'setVehicleMode', 'setPosition', 'setPalette', 'setOpacity']);
+  if (coalescedActions.has(action)) {
+    for (let index = settingsActionQueue.length - 1; index >= 0; index -= 1) {
+      if (settingsActionQueue[index].action === action) settingsActionQueue.splice(index, 1);
+    }
+  }
+
+  settingsActionQueue.push({ action, value });
+  void processSettingsActions();
 }
 
 function applyFootDisplayMode() {
@@ -1653,6 +1698,96 @@ function playVehicleSound(raw = {}) {
   audio.play().catch(release);
 }
 
+function resetRuntimeState() {
+  clearSettingsActionQueue();
+
+  [
+    showAllExitTimer,
+    modeSwitchTimer,
+    vehicleEntryTimer,
+    vehicleRevealDelayTimer,
+    vehicleExitTimer,
+    identityHandoffTimer,
+    summaryHandoffTimer,
+    raceModeSwitchTimer
+  ].forEach((timer) => window.clearTimeout(timer));
+
+  showAllExitTimer = null;
+  modeSwitchTimer = null;
+  vehicleEntryTimer = null;
+  vehicleRevealDelayTimer = null;
+  vehicleExitTimer = null;
+  identityHandoffTimer = null;
+  summaryHandoffTimer = null;
+  raceModeSwitchTimer = null;
+
+  summaryLayoutTransition?.cancel();
+  voiceLayoutTransition?.cancel();
+  summaryLayoutTransition = null;
+  voiceLayoutTransition = null;
+
+  if (statusAnchorFrame !== null) window.cancelAnimationFrame(statusAnchorFrame);
+  statusAnchorFrame = null;
+
+  STATUS_ORDER.forEach((name) => {
+    const status = statuses[name];
+    window.clearTimeout(status.changeTimer);
+    window.clearTimeout(status.exitTimer);
+    window.clearTimeout(status.dropTimer);
+    status.changeTimer = null;
+    status.exitTimer = null;
+    status.dropTimer = null;
+    status.lastValue = undefined;
+    status.card.classList.add('is-hidden');
+    status.card.classList.remove(
+      'is-changing',
+      'is-leaving',
+      'is-resuming',
+      'is-critical',
+      'is-top-status'
+    );
+    status.card.style.removeProperty('--critical-pulse-delay');
+    status.card.style.removeProperty('--status-anchor-x');
+    status.card.style.removeProperty('--deploy-delay');
+    status.card.style.removeProperty('--exit-delay');
+    status.summary?.parentElement?.classList.add('is-hidden');
+    status.summary?.parentElement?.classList.remove('is-critical', 'is-dropping', 'is-empty');
+    status.summary?.style.removeProperty('--summary-progress');
+  });
+
+  showAllStatuses = false;
+  modeSwitching = false;
+  vehicleMode = false;
+  vehicleRevealReady = false;
+  vehicleExiting = false;
+  activeRaceMode = null;
+
+  app.classList.remove(
+    'show-status-values',
+    'is-status-exiting',
+    'is-peeking',
+    'has-critical-status',
+    'has-status-changing',
+    'has-status-leaving',
+    'is-mode-switching',
+    'is-vehicle',
+    'is-vehicle-entering',
+    'is-vehicle-exiting',
+    'is-vehicle-reveal-pending',
+    'is-vehicle-handoff',
+    'is-foot-handoff',
+    'is-summary-handoff',
+    'is-race-mode',
+    'is-emergency-lights'
+  );
+  vehiclePanel.classList.add('is-hidden');
+  vehiclePanel.classList.remove('is-race-switching-out', 'is-race-switching-in');
+  vehicleDetailPanel.classList.add('is-hidden');
+  vehicleDetailPanel.classList.remove('has-nitro');
+  resetVehicleCrashEffect();
+  resetVehicleSafetySlot();
+}
+
 window.addEventListener('message', (event) => {
   const payload = event.data;
   if (!payload || typeof payload !== 'object') return;
@@ -1710,12 +1845,12 @@ window.addEventListener('message', (event) => {
   }
 
   if (payload.action === 'hud:reset') {
+    resetRuntimeState();
     activeVehicleSounds.forEach((audio) => {
       audio.pause();
       audio.currentTime = 0;
     });
     activeVehicleSounds.clear();
-    resetVehicleCrashEffect();
     resetHudNotifications();
     hudState = { ...DEFAULT_HUD_STATE };
     setVoiceMode(DEFAULT_HUD_STATE.voiceMode);
@@ -1723,7 +1858,6 @@ window.addEventListener('message', (event) => {
     setVisible({ panelsVisible: false, notificationsVisible: false, textUiVisible: false });
     showHudTextUi({ visible: false });
     setSettingsVisible(false);
-    updateVehicle(false);
     return;
   }
 

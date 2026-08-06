@@ -1,3 +1,5 @@
+if Hud.serverConfigValid ~= true then return end
+
 local validTypes = {
     inform = 'inform', info = 'inform', primary = 'inform',
     success = 'success', warning = 'warning', error = 'error'

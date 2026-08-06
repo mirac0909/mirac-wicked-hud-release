@@ -3,6 +3,13 @@ local stateCache = {}
 local messageCache = {}
 local pendingMessages = {}
 local queuedNotifications = {}
+local queuedTransientMessages = {}
+
+local transientActions = {
+    ['hud:vehicleCrash'] = true,
+    ['hud:vehicleSound'] = true,
+    ['hud:nitroEmptyAttempt'] = true
+}
 
 local function debugMessage(direction, payload)
     if not Config.Client.nuiDebug then return end
@@ -25,6 +32,16 @@ local function queueNotification(payload)
     end
 
     queuedNotifications[#queuedNotifications + 1] = payload
+end
+
+local function queueTransientMessage(payload)
+    local maximum = 64
+
+    if #queuedTransientMessages >= maximum then
+        table.remove(queuedTransientMessages, 1)
+    end
+
+    queuedTransientMessages[#queuedTransientMessages + 1] = payload
 end
 
 local function diffAndMerge(target, patch, force)
@@ -71,11 +88,25 @@ function Hud.sendNuiUpdate(patch, force)
     return true
 end
 
+function Hud.sendNuiTransient(action, data)
+    if type(action) ~= 'string' or type(data) ~= 'table' then return false end
+
+    local payload = { action = action, data = Hud.copy(data) }
+    if nuiReady then
+        post(payload)
+    else
+        queueTransientMessage(payload)
+    end
+
+    return true
+end
+
 function Hud.sendNui(action, data, force)
     if action == Hud.actions.update then
         return Hud.sendNuiUpdate(data, force)
     end
     if type(action) ~= 'string' or type(data) ~= 'table' then return false end
+    if transientActions[action] then return Hud.sendNuiTransient(action, data) end
 
     if action == Hud.actions.notification
         or action == Hud.actions.notificationUpdate
@@ -108,6 +139,7 @@ function Hud.clearNuiState()
     messageCache = {}
     pendingMessages = {}
     queuedNotifications = {}
+    queuedTransientMessages = {}
 
     if nuiReady then
         post({ action = Hud.actions.reset, data = {} })
@@ -120,6 +152,7 @@ function Hud.resetNui()
     messageCache = {}
     pendingMessages = {}
     queuedNotifications = {}
+    queuedTransientMessages = {}
 end
 
 function Hud.setNuiReady()
@@ -160,6 +193,9 @@ function Hud.setNuiReady()
 
     for index = 1, #queuedNotifications do post(queuedNotifications[index]) end
     queuedNotifications = {}
+
+    for index = 1, #queuedTransientMessages do post(queuedTransientMessages[index]) end
+    queuedTransientMessages = {}
 end
 
 RegisterNUICallback('hudReady', function(_, callback)

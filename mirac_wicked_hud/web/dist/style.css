@@ -1439,7 +1439,11 @@ body {
 
 .settings-dialog {
   position: relative;
+  display: flex;
+  max-height: calc(100vh - 32px);
   width: min(520px, calc(100vw - 40px));
+  min-height: 0;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(116, 137, 171, 0.34);
   border-radius: 18px;
@@ -1452,6 +1456,29 @@ body {
   transition:
     transform var(--card-enter-duration) var(--card-enter-easing),
     opacity var(--card-enter-duration) var(--card-enter-easing);
+}
+
+.hud-settings.is-busy .settings-dialog {
+  cursor: progress;
+}
+
+.hud-settings.is-busy .settings-dialog::after {
+  position: absolute;
+  z-index: 3;
+  top: 21px;
+  right: 65px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  box-shadow: 0 0 10px rgba(var(--theme-accent-rgb), 0.7);
+  content: '';
+  animation: settings-busy-pulse 760ms ease-in-out infinite alternate;
+}
+
+@keyframes settings-busy-pulse {
+  from { opacity: 0.35; transform: scale(0.76); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .hud-settings.is-hidden .settings-dialog {
@@ -1522,8 +1549,40 @@ body {
 
 .settings-content {
   display: grid;
+  min-height: 0;
   gap: 15px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 20px 24px 22px;
+  scrollbar-color: rgba(var(--theme-accent-rgb), 0.45) transparent;
+  scrollbar-width: thin;
+}
+
+.settings-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(var(--theme-accent-rgb), 0.38);
+  background-clip: padding-box;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--theme-accent-rgb), 0.68);
+  background-clip: padding-box;
+}
+
+.settings-content::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .settings-row,
@@ -1842,8 +1901,15 @@ body {
 }
 
 @media (max-height: 720px) {
-  .settings-dialog { transform: scale(0.88); }
-  .hud-settings.is-hidden .settings-dialog { transform: translateY(12px) scale(0.85); }
+  .settings-dialog {
+    max-height: calc(100vh - 16px);
+    transform: none;
+  }
+  .settings-content {
+    gap: 10px;
+    padding-block: 14px 16px;
+  }
+  .hud-settings.is-hidden .settings-dialog { transform: translateY(12px) scale(0.98); }
 }
 
 /* Live status feedback: stay visible while changing and warn softly at 50%. */
@@ -4290,8 +4356,11 @@ body {
 
 .hud .status-identity-ids .identity-status-icon {
   grid-row: 1;
+  top: -2px;
+  border: 0;
   color: var(--theme-accent);
-  background: rgba(var(--theme-accent-rgb), 0.11);
+  background: transparent;
+  box-shadow: none;
 }
 
 .hud .status-identity-ids .identity-status-icon svg {

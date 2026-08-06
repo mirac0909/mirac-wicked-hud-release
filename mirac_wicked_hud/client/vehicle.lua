@@ -270,12 +270,12 @@ local function updateVehicleCrashEffect(vehicle, speedKmh)
     if not impactDetected or not Hud.isNuiReady() then return end
 
     crashEffectCooldownUntil = now + cooldown
-    Hud.sendNui('hud:vehicleCrash', {
+    Hud.sendNuiTransient('hud:vehicleCrash', {
         severity = math.min(1.0, math.max(
             speedLoss / speedDropThreshold,
             bodyHealthLoss / bodyLossThreshold
         ))
-    }, true)
+    })
     playCrashRadarReboot(vehicle)
 end
 
@@ -284,10 +284,10 @@ local function playConfiguredSound(settings, nativeSound, customSound)
 
     if settings.soundMode == 'custom' then
         if not Hud.isNuiReady() then return end
-        Hud.sendNui('hud:vehicleSound', {
+        Hud.sendNuiTransient('hud:vehicleSound', {
             file = customSound,
             volume = settings.customVolume
-        }, true)
+        })
         return
     end
 
@@ -301,10 +301,10 @@ local function playGearShiftSound(direction)
     local file = settings.customSounds and settings.customSounds[direction]
     if type(file) ~= 'string' or file == '' then return false end
 
-    Hud.sendNui('hud:vehicleSound', {
+    Hud.sendNuiTransient('hud:vehicleSound', {
         file = file,
         volume = settings.customVolume
-    }, true)
+    })
     return true
 end
 
@@ -315,10 +315,10 @@ local function playNitroSound(kind)
     local file = settings.customSounds and settings.customSounds[kind]
     if type(file) ~= 'string' or file == '' then return false end
 
-    Hud.sendNui('hud:vehicleSound', {
+    Hud.sendNuiTransient('hud:vehicleSound', {
         file = file,
         volume = settings.customVolumes and settings.customVolumes[kind] or 0.35
-    }, true)
+    })
     return true
 end
 
@@ -604,7 +604,7 @@ exports('playNitroSound', function(kind)
     kind = kind == 'empty' and 'empty' or 'start'
     local played = playNitroSound(kind)
     if kind == 'empty' and Hud.isNuiReady() then
-        Hud.sendNui('hud:nitroEmptyAttempt', {}, true)
+        Hud.sendNuiTransient('hud:nitroEmptyAttempt', {})
     end
     return played
 end)

@@ -1,5 +1,6 @@
 local function log(message, level)
-    if not Config.Server.enableLogs and level ~= 'error' then return end
+    local logsEnabled = type(Config.Server) == 'table' and Config.Server.enableLogs == true
+    if not logsEnabled and level ~= 'error' then return end
     local prefix = ('[%s]'):format(Hud.resource)
 
     if level == 'error' then
@@ -37,8 +38,12 @@ local function validateServerConfig()
     return valid
 end
 
+Hud.serverConfigValid = validateServerConfig()
+
 AddEventHandler('onResourceStart', function(resourceName)
     if resourceName ~= Hud.resource then return end
+
+    if not Hud.serverConfigValid then return end
 
     if GetResourceState('ox_lib') ~= 'started' then
         log(locale('dependency_missing', 'ox_lib'), 'error')
@@ -50,7 +55,5 @@ AddEventHandler('onResourceStart', function(resourceName)
         return
     end
 
-    if validateServerConfig() then
-        log(locale('resource_started'), 'info')
-    end
+    log(locale('resource_started'), 'info')
 end)

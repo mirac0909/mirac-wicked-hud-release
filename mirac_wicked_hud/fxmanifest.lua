@@ -42,10 +42,10 @@ client_scripts {
 
 server_scripts {
     'config/server.lua',
+    'server/main.lua',
     'bridge/qbox/server.lua',
     'server/notifications.lua',
-    'server/callbacks.lua',
-    'server/main.lua'
+    'server/callbacks.lua'
 }
 
 dependencies {

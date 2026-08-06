@@ -1,3 +1,5 @@
+if Hud.serverConfigValid ~= true then return end
+
 local requestState = {}
 
 local function clearRequestState(source)

@@ -76,8 +76,10 @@ function Hud.isOneOf(value, allowed)
 end
 
 function Hud.isNumberInRange(value, minimum, maximum)
-    value = tonumber(value)
-    return value ~= nil and value == value and value >= minimum and value <= maximum
+    return type(value) == 'number'
+        and value == value
+        and value >= minimum
+        and value <= maximum
 end
 
 function Hud.validateSharedConfig()
@@ -87,7 +89,7 @@ function Hud.validateSharedConfig()
         if type(value) ~= 'string'
             or #value > 128
             or not value:match('^sounds/[%w%._%-%/]+$')
-            or value:find('%.%.', 1, true)
+            or value:find('..', 1, true)
         then
             return false
         end
@@ -232,6 +234,23 @@ function Hud.validateSharedConfig()
     then
         add('Config.VoiceModeStateBag')
     end
+
+    if type(Config.VoiceShoutAutoReset) ~= 'table' then
+        add('Config.VoiceShoutAutoReset')
+    else
+        if type(Config.VoiceShoutAutoReset.enabled) ~= 'boolean' then
+            add('Config.VoiceShoutAutoReset.enabled')
+        end
+        if not Hud.isNumberInRange(Config.VoiceShoutAutoReset.duration, 1000, 600000) then
+            add('Config.VoiceShoutAutoReset.duration')
+        end
+        if not Hud.isNumberInRange(Config.VoiceShoutAutoReset.fallbackMode, 1, 3)
+            or math.floor(Config.VoiceShoutAutoReset.fallbackMode or 0) ~= Config.VoiceShoutAutoReset.fallbackMode
+        then
+            add('Config.VoiceShoutAutoReset.fallbackMode')
+        end
+    end
+
     if not Hud.isOneOf(Config.FuelSystem, { 'native', 'statebag', 'export', 'custom' }) then add('Config.FuelSystem') end
 
     if type(Config.FuelStateBag) ~= 'string' or Config.FuelStateBag == '' or #Config.FuelStateBag > 64 then
@@ -408,6 +427,26 @@ function Hud.validateSharedConfig()
                     add(('Config.VehicleWarnings.customSounds.%s'):format(key))
                 end
             end
+        end
+    end
+
+    if type(Config.VehicleCrashEffect) ~= 'table' then
+        add('Config.VehicleCrashEffect')
+    else
+        if type(Config.VehicleCrashEffect.enabled) ~= 'boolean' then
+            add('Config.VehicleCrashEffect.enabled')
+        end
+        if not Hud.isNumberInRange(Config.VehicleCrashEffect.minimumSpeed, 0, 500) then
+            add('Config.VehicleCrashEffect.minimumSpeed')
+        end
+        if not Hud.isNumberInRange(Config.VehicleCrashEffect.speedDrop, 1, 300) then
+            add('Config.VehicleCrashEffect.speedDrop')
+        end
+        if not Hud.isNumberInRange(Config.VehicleCrashEffect.bodyHealthLoss, 1, 1000) then
+            add('Config.VehicleCrashEffect.bodyHealthLoss')
+        end
+        if not Hud.isNumberInRange(Config.VehicleCrashEffect.cooldown, 500, 60000) then
+            add('Config.VehicleCrashEffect.cooldown')
         end
     end
 
