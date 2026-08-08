@@ -1,0 +1,1351 @@
+/* Reference-driven race cockpit. This file is intentionally isolated from the
+   shared vehicle layout so normal mode keeps its existing geometry. */
+.race-chassis,
+.race-chassis-asset,
+.race-rpm-ticks,
+.race-meter-bezel,
+.race-meter-icon,
+.race-nitro-value {
+  display: none;
+}
+
+.hud.is-race-mode {
+  --race-width: clamp(900px, 66vw, 1148px);
+  --race-half: clamp(450px, 33vw, 574px);
+  --race-height: clamp(225px, 16.6vw, 284px);
+  --race-pod: clamp(78px, 6.1vw, 105px);
+  --race-bottom: max(28px, calc(var(--safe-zone-y) + 8px));
+  --race-ui-scale: 0.697;
+}
+
+.hud.is-vehicle.is-race-mode .vehicle-panel {
+  right: auto;
+  bottom: var(--race-bottom);
+  left: 50%;
+  display: block;
+  width: var(--race-width);
+  max-width: calc(100vw - var(--safe-zone-x) - var(--safe-zone-x) - 24px);
+  min-width: 0;
+  height: var(--race-height);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+  translate: -50% 0;
+  scale: var(--race-ui-scale);
+  transform-origin: center bottom;
+  isolation: isolate;
+}
+
+.hud.is-vehicle.is-race-mode .vehicle-panel::before,
+.hud.is-vehicle.is-race-mode .vehicle-panel::after {
+  display: none;
+  content: none;
+}
+
+.hud.is-vehicle.is-race-mode .vehicle-panel.is-hidden {
+  translate: -50% 0;
+  transform: translateY(12px) scale(0.985);
+}
+
+.hud.is-vehicle.is-race-mode .race-chassis {
+  position: absolute;
+  z-index: 0;
+  inset: 15% 3.4% 1%;
+  display: block;
+  clip-path: polygon(
+    10% 0,
+    41% 0,
+    45% 17%,
+    55% 17%,
+    59% 0,
+    90% 0,
+    100% 55%,
+    94% 100%,
+    6% 100%,
+    0 55%
+  );
+  background: linear-gradient(100deg, rgba(var(--theme-muted-rgb), 0.58), rgba(var(--theme-accent-rgb), 0.94) 48%, rgba(var(--theme-alt-rgb), 0.78));
+  filter:
+    drop-shadow(0 16px 24px rgba(0, 0, 0, 0.52))
+    drop-shadow(0 0 7px rgba(var(--theme-accent-rgb), 0.32));
+  pointer-events: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-chassis::before {
+  position: absolute;
+  z-index: 0;
+  inset: 1px;
+  clip-path: inherit;
+  background:
+    radial-gradient(circle at 50% 72%, rgba(var(--theme-accent-rgb), 0.075), transparent 35%),
+    linear-gradient(90deg, rgba(var(--theme-alt-rgb), 0.08), transparent 27%, transparent 73%, rgba(var(--theme-accent-rgb), 0.07)),
+    linear-gradient(180deg, rgba(15, 17, 29, 0.985), rgba(5, 7, 14, 0.992));
+  content: "";
+}
+
+.hud.is-vehicle.is-race-mode .race-chassis::after {
+  position: absolute;
+  z-index: 1;
+  inset: 6% 4.5% 7%;
+  clip-path: polygon(7% 0, 93% 0, 100% 53%, 94% 100%, 6% 100%, 0 53%);
+  border: 1px solid rgba(var(--theme-muted-rgb), 0.28);
+  background:
+    linear-gradient(90deg, rgba(var(--theme-accent-rgb), 0.5), transparent) left top / 13% 1px no-repeat,
+    linear-gradient(270deg, rgba(var(--theme-alt-rgb), 0.48), transparent) right bottom / 13% 1px no-repeat;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+  content: "";
+}
+
+.hud.is-vehicle.is-race-mode .race-chassis-lines {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.hud.is-vehicle.is-race-mode .race-stop-shell-top { stop-color: rgb(21, 24, 39); stop-opacity: 0.99; }
+.hud.is-vehicle.is-race-mode .race-stop-shell-mid { stop-color: rgb(10, 13, 24); stop-opacity: 0.99; }
+.hud.is-vehicle.is-race-mode .race-stop-shell-bottom { stop-color: rgb(4, 6, 12); stop-opacity: 1; }
+.hud.is-vehicle.is-race-mode .race-stop-rim-alt { stop-color: var(--theme-alt); stop-opacity: 0.72; }
+.hud.is-vehicle.is-race-mode .race-stop-rim-text { stop-color: rgb(var(--theme-text-rgb)); stop-opacity: 0.64; }
+.hud.is-vehicle.is-race-mode .race-stop-rim-accent { stop-color: var(--theme-accent); stop-opacity: 0.76; }
+.hud.is-vehicle.is-race-mode .race-stop-side-alt { stop-color: var(--theme-alt); stop-opacity: 0.12; }
+.hud.is-vehicle.is-race-mode .race-stop-side-accent { stop-color: var(--theme-accent); stop-opacity: 0.1; }
+.hud.is-vehicle.is-race-mode .race-stop-side-clear { stop-color: rgb(4, 6, 12); stop-opacity: 0.05; }
+.hud.is-vehicle.is-race-mode .race-stop-speed-core { stop-color: rgb(18, 22, 37); stop-opacity: 0.94; }
+.hud.is-vehicle.is-race-mode .race-stop-speed-edge { stop-color: rgb(3, 5, 11); stop-opacity: 0.97; }
+
+.hud.is-vehicle.is-race-mode .race-shell-fill {
+  fill: url(#race-shell-surface);
+  stroke: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-shell-panel {
+  stroke: rgba(var(--theme-muted-rgb), 0.1);
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.hud.is-vehicle.is-race-mode .race-shell-panel-left { fill: url(#race-shell-side-left); }
+.hud.is-vehicle.is-race-mode .race-shell-panel-right { fill: url(#race-shell-side-right); }
+
+.hud.is-vehicle.is-race-mode .race-shell-lower {
+  fill: rgba(1, 3, 8, 0.74);
+  stroke: rgba(var(--theme-muted-rgb), 0.17);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.hud.is-vehicle.is-race-mode .race-line-outer {
+  stroke: url(#race-shell-rim);
+  stroke-width: 1.55;
+}
+
+.hud.is-vehicle.is-race-mode .race-line-outer-glow {
+  stroke: rgba(var(--theme-alt-rgb), 0.34);
+  stroke-width: 5;
+  opacity: 0.58;
+  filter: blur(3px);
+}
+
+.hud.is-vehicle.is-race-mode .race-line-inner {
+  stroke: rgba(var(--theme-muted-rgb), 0.34);
+  stroke-width: 1;
+}
+
+.hud.is-vehicle.is-race-mode .race-line-speed {
+  fill: url(#race-speed-surface);
+  stroke: rgba(var(--theme-muted-rgb), 0.31);
+  stroke-width: 1.25;
+}
+
+.hud.is-vehicle.is-race-mode .race-line-speed-inner {
+  fill: none;
+  stroke: rgba(var(--theme-alt-rgb), 0.15);
+  stroke-width: 0.85;
+}
+
+.hud.is-vehicle.is-race-mode .race-line-detail {
+  stroke: rgba(var(--theme-muted-rgb), 0.22);
+  stroke-width: 1;
+}
+
+.hud.is-vehicle.is-race-mode .race-line-corner {
+  stroke: rgba(var(--theme-accent-rgb), 0.18);
+  stroke-width: 1;
+}
+
+.hud.is-vehicle.is-race-mode .vehicle-accent {
+  position: absolute;
+  z-index: 2;
+  top: auto;
+  right: 12%;
+  bottom: 4.3%;
+  left: 12%;
+  width: auto;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--theme-alt), var(--theme-accent), transparent);
+  box-shadow: 0 0 8px rgba(var(--theme-accent-rgb), 0.42);
+  opacity: 0.72;
+}
+
+/* Segmented 0-100 RPM rail, with the gear pod floating over its midpoint. */
+.hud.is-vehicle.is-race-mode .race-rpm-strip {
+  position: absolute;
+  z-index: 3;
+  top: 17%;
+  right: 14%;
+  left: 14%;
+  display: block;
+  height: 16%;
+  overflow: visible;
+  border: 1px solid rgba(var(--theme-muted-rgb), 0.32);
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(17, 21, 34, 0.98), rgba(3, 5, 11, 0.99));
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 -1px rgba(var(--theme-accent-rgb), 0.12),
+    0 6px 12px rgba(0, 0, 0, 0.48),
+    0 0 8px rgba(var(--theme-alt-rgb), 0.14);
+  clip-path: polygon(2% 0, 98% 0, 100% 50%, 98% 100%, 2% 100%, 0 50%);
+}
+
+.hud.is-vehicle.is-race-mode .race-rpm-strip::before {
+  position: absolute;
+  z-index: 0;
+  inset: 8% 1.2% 10%;
+  border: 1px solid rgba(var(--theme-muted-rgb), 0.15);
+  clip-path: polygon(1.6% 0, 98.4% 0, 100% 50%, 98.4% 100%, 1.6% 100%, 0 50%);
+  background: linear-gradient(180deg, rgba(2, 4, 9, 0.84), rgba(9, 12, 22, 0.76));
+  box-shadow: inset 0 5px 9px rgba(0, 0, 0, 0.5);
+  content: "";
+}
+
+.hud.is-vehicle.is-race-mode .race-rpm-strip::after {
+  position: absolute;
+  z-index: 3;
+  right: 1.2%;
+  top: auto;
+  bottom: 28%;
+  left: 1.2%;
+  height: 24%;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(2.941% - 2px), rgba(var(--theme-surface-rgb), 0.98) calc(2.941% - 2px) 2.941%);
+  content: "";
+  pointer-events: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-rpm-ticks {
+  position: absolute;
+  z-index: 2;
+  top: 5%;
+  right: 9%;
+  left: 9%;
+  display: flex;
+  justify-content: space-between;
+  color: rgba(var(--theme-text-rgb), 0.72);
+  font-size: clamp(9px, 0.7vw, 12px);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud.is-vehicle.is-race-mode .race-rpm-ticks b {
+  font: inherit;
+}
+
+.hud.is-vehicle.is-race-mode .race-rpm-ticks b:nth-child(2) { transform: translateX(-48px); }
+.hud.is-vehicle.is-race-mode .race-rpm-ticks b:nth-child(3) { transform: translateX(48px); }
+
+.hud.is-vehicle.is-race-mode .race-rpm-strip > i {
+  --race-rpm-progress: 0;
+  position: absolute;
+  z-index: 1;
+  right: 1.2%;
+  top: auto;
+  bottom: 28%;
+  left: 1.2%;
+  width: 97.6% !important;
+  height: 24%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--theme-alt) 0%, var(--theme-accent) 49%, #fbbf6a 50%, #fb7a45 76%, #fb2f5f 100%);
+  box-shadow: 0 0 9px rgba(var(--theme-accent-rgb), 0.68);
+  transform: scaleX(var(--race-rpm-progress));
+  transform-origin: left center;
+  transition: transform 90ms linear, filter 160ms ease, box-shadow 160ms ease;
+}
+
+.hud.is-vehicle.is-race-mode .race-rpm-strip > i.is-high {
+  background: linear-gradient(90deg, var(--theme-alt) 0%, var(--theme-accent) 49%, #fbbf6a 50%, #fb7a45 76%, #fb2f5f 100%);
+  filter: saturate(1.18) brightness(1.08);
+  box-shadow: 0 0 11px rgba(251, 146, 60, 0.76);
+}
+
+.hud.is-vehicle.is-race-mode .race-rpm-strip > i.is-redline {
+  background: linear-gradient(90deg, var(--theme-alt) 0%, var(--theme-accent) 49%, #fbbf6a 50%, #fb7a45 76%, #fb2f5f 100%);
+  box-shadow: 0 0 14px rgba(251, 79, 100, 0.9);
+  animation: race-ref-redline-rail 460ms ease-in-out infinite;
+}
+
+/* Raised gear capsule. Existing previous/current digit layers remain intact. */
+.hud.is-vehicle.is-race-mode .gear-block {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 50%;
+  display: block;
+  width: clamp(160px, 13vw, 196px);
+  height: 31%;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(var(--theme-accent-rgb), 0.64);
+  border-radius: 11px 11px 18px 18px;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(var(--theme-accent-rgb), 0.13), transparent 40%),
+    linear-gradient(145deg, rgba(var(--theme-surface-soft-rgb), 0.99), rgba(var(--theme-surface-rgb), 0.99)),
+    rgba(var(--theme-surface-rgb), 0.99);
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.44),
+    0 0 12px rgba(var(--theme-accent-rgb), 0.24),
+    inset 0 1px rgba(255, 255, 255, 0.11),
+    inset 0 -1px rgba(var(--theme-alt-rgb), 0.24),
+    inset 0 0 0 2px rgba(var(--theme-muted-rgb), 0.08);
+  clip-path: polygon(13% 0, 87% 0, 100% 38%, 83% 100%, 17% 100%, 0 38%);
+  translate: -50% 0;
+  transform: none;
+}
+
+.hud.is-vehicle.is-race-mode .gear-block::before,
+.hud.is-vehicle.is-race-mode .gear-block::after {
+  position: absolute;
+  top: 21%;
+  z-index: 3;
+  color: rgba(var(--theme-alt-rgb), 0.52);
+  font-family: "Segoe UI Symbol", sans-serif;
+  font-size: clamp(22px, 1.7vw, 29px);
+  font-weight: 300;
+  line-height: 1;
+  text-shadow: 0 0 6px rgba(var(--theme-alt-rgb), 0.32);
+}
+
+.hud.is-vehicle.is-race-mode .gear-block::before {
+  left: 15%;
+  content: "\2039";
+}
+
+.hud.is-vehicle.is-race-mode .gear-block::after {
+  right: 15%;
+  content: "\203A";
+}
+
+.hud.is-vehicle.is-race-mode .gear-block > span {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 12%;
+  left: 0;
+  display: block;
+  color: rgb(var(--theme-text-rgb));
+  font-size: clamp(10px, 0.76vw, 13px);
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  text-align: center;
+  opacity: 0.78;
+}
+
+.hud.is-vehicle.is-race-mode .gear-block strong {
+  position: absolute;
+  z-index: 2;
+  top: 4%;
+  left: 50%;
+  width: 44%;
+  height: 62%;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  color: rgb(var(--theme-text-rgb));
+  background: transparent;
+  box-shadow: none;
+  font-family: "Bahnschrift", "Arial Narrow", "Segoe UI", sans-serif;
+  font-size: clamp(44px, 3.4vw, 60px);
+  font-weight: 820;
+  line-height: 1;
+  text-shadow: 0 0 10px rgba(var(--theme-accent-rgb), 0.34);
+  translate: -50% 0;
+}
+
+.hud.is-vehicle.is-race-mode .gear-block .gear-layer {
+  transform: translateX(-1px) scaleX(1.25);
+}
+
+.hud.is-vehicle.is-race-mode .gear-rpm-ring {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .gear-block strong.is-rpm-high {
+  border: 0;
+  color: rgb(var(--theme-text-rgb));
+  background: transparent;
+  box-shadow: none;
+  text-shadow: 0 0 11px rgba(251, 146, 60, 0.62);
+}
+
+.hud.is-vehicle.is-race-mode .gear-block strong.is-rpm-redline {
+  border: 0;
+  color: rgb(var(--theme-text-rgb));
+  background: transparent;
+  box-shadow: none;
+  text-shadow: 0 0 13px rgba(251, 79, 100, 0.78);
+  animation: race-ref-redline-gear 460ms ease-in-out infinite;
+}
+
+/* Central framed speed readout. */
+.hud.is-vehicle.is-race-mode .speed-block {
+  position: absolute;
+  z-index: 3;
+  top: 31.6%;
+  left: 50%;
+  display: grid;
+  align-content: start;
+  width: 39%;
+  min-width: 0;
+  height: 60%;
+  padding: 2.2% 3% 0;
+  border: 0;
+  text-align: center;
+  translate: -50% 0;
+  transform: none;
+}
+
+.hud.is-vehicle.is-race-mode .speed-block::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  clip-path: polygon(8% 0, 92% 0, 100% 35%, 84% 100%, 16% 100%, 0 35%);
+  content: "";
+}
+
+.hud.is-vehicle.is-race-mode .speed-block::after {
+  position: absolute;
+  z-index: -1;
+  inset: 8% 5% 7%;
+  border-top: 1px solid rgba(var(--theme-accent-rgb), 0.16);
+  border-bottom: 1px solid rgba(var(--theme-alt-rgb), 0.14);
+  content: "";
+}
+
+.hud.is-vehicle.is-race-mode .speed-label {
+  display: block;
+  margin: 0 0 2%;
+  color: rgb(var(--theme-muted-rgb));
+  font-size: clamp(11px, 0.9vw, 16px);
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  transform: translateY(-9px);
+}
+
+.hud.is-vehicle.is-race-mode .speed-line {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.hud.is-vehicle.is-race-mode .speed-block strong {
+  display: block;
+  width: 100%;
+  color: rgb(var(--theme-text-rgb));
+  font-family: "Bahnschrift", "Arial Narrow", "Segoe UI", sans-serif;
+  font-size: clamp(78px, 6.9vw, 116px);
+  font-stretch: expanded;
+  font-weight: 760;
+  line-height: 0.8;
+  letter-spacing: 0.025em;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(var(--theme-accent-rgb), 0.2), 0 3px 8px rgba(0, 0, 0, 0.5);
+  transform: scaleX(1.18);
+  transform-origin: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud.is-vehicle.is-race-mode .speed-unit {
+  position: absolute;
+  top: 103%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  margin: 0;
+  color: var(--theme-accent);
+  font-size: clamp(11px, 1vw, 16px);
+  font-weight: 850;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  opacity: 0.92;
+  translate: -50% 0;
+}
+
+.hud.is-vehicle.is-race-mode .vehicle-divider {
+  display: none;
+}
+
+/* Mirrored fuel and engine-health dials. */
+.hud.is-vehicle.is-race-mode .vehicle-meters {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: block;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: none;
+  pointer-events: none;
+}
+
+.hud.is-vehicle.is-race-mode .meter-row {
+  position: absolute;
+  top: 38%;
+  display: block;
+  width: 17%;
+  height: 53%;
+  background: transparent;
+}
+
+.hud.is-vehicle.is-race-mode .fuel-row {
+  left: 14.86%;
+}
+
+.hud.is-vehicle.is-race-mode .engine-row {
+  right: 15.16%;
+}
+
+.hud.is-vehicle.is-race-mode .meter-row > .race-meter-bezel {
+  position: absolute;
+  z-index: 0;
+  top: 1%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  display: block;
+  width: auto;
+  height: 94%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 43%, rgba(var(--theme-surface-soft-rgb), 0.52), rgba(var(--theme-surface-rgb), 0.98) 57%, rgba(2, 4, 9, 0.99) 72%);
+  box-shadow:
+    0 0 0 2px rgba(var(--theme-surface-rgb), 0.96),
+    0 0 0 3px rgba(var(--theme-muted-rgb), 0.14),
+    0 8px 14px rgba(0, 0, 0, 0.38),
+    inset 0 1px rgba(255, 255, 255, 0.055),
+    inset 0 0 18px rgba(0, 0, 0, 0.68);
+  translate: -50% 0;
+}
+
+.hud.is-vehicle.is-race-mode .meter-row > .race-meter-bezel::before,
+.hud.is-vehicle.is-race-mode .meter-row > .race-meter-bezel::after {
+  position: absolute;
+  border-radius: inherit;
+  content: "";
+}
+
+.hud.is-vehicle.is-race-mode .meter-row > .race-meter-bezel::before {
+  inset: 4%;
+  border: 1px solid rgba(var(--theme-muted-rgb), 0.16);
+  box-shadow: inset 0 0 0 2px rgba(var(--theme-surface-rgb), 0.58);
+}
+
+.hud.is-vehicle.is-race-mode .meter-row > .race-meter-bezel::after {
+  inset: 17%;
+  border: 1px solid rgba(var(--theme-text-rgb), 0.045);
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.035), transparent 54%);
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc {
+  position: absolute;
+  z-index: 1;
+  inset: -5%;
+  display: block;
+  width: 110%;
+  height: 110%;
+  overflow: visible;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-track,
+.hud.is-vehicle.is-race-mode .race-meter-arc-ticks,
+.hud.is-vehicle.is-race-mode .race-meter-arc-value {
+  fill: none;
+  stroke-width: 5.5;
+  stroke-linecap: butt;
+  vector-effect: non-scaling-stroke;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-track {
+  stroke: rgba(4, 7, 14, 0.94);
+  stroke-width: 8.5;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-ticks {
+  stroke: rgba(var(--theme-text-rgb), 0.24);
+  stroke-width: 8;
+  stroke-dasharray: 2.8 3.2;
+  opacity: 0;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-value {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 220ms linear, stroke 180ms ease, filter 180ms ease;
+  opacity: 0;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-segment-track,
+.hud.is-vehicle.is-race-mode .race-meter-segment {
+  fill: none;
+  stroke-width: 5.35;
+  stroke-linecap: butt;
+  vector-effect: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-segment-track {
+  stroke: rgba(var(--theme-muted-rgb), 0.52);
+  opacity: 0.78;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-segment {
+  stroke: transparent;
+  opacity: 0;
+  transition: stroke 180ms ease, filter 180ms ease, opacity 180ms ease;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-segment.is-active {
+  opacity: 1;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-fuel .race-meter-segment.is-active,
+.hud.is-vehicle.is-race-mode .race-meter-arc-engine .race-meter-segment.is-active {
+  stroke: #fb923c;
+  opacity: 1;
+  filter: drop-shadow(0 0 0.75px rgba(251, 146, 60, 0.3));
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-fuel .race-meter-segment.is-active.is-low-zone,
+.hud.is-vehicle.is-race-mode .race-meter-arc-engine .race-meter-segment.is-active.is-low-zone {
+  stroke: #fb4f64;
+  filter: drop-shadow(0 0 0.75px rgba(251, 79, 100, 0.32));
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-fuel .race-meter-segment.is-active.is-high-zone,
+.hud.is-vehicle.is-race-mode .race-meter-arc-engine .race-meter-segment.is-active.is-high-zone {
+  stroke: #4ade80;
+  filter: drop-shadow(0 0 0.75px rgba(74, 222, 128, 0.34));
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-segment.is-active.is-danger {
+  stroke: #fb4f64;
+  filter: drop-shadow(0 0 4px rgba(251, 79, 100, 0.86));
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-fuel .race-meter-arc-value {
+  stroke: url(#race-fuel-gradient);
+  filter: drop-shadow(0 0 4px rgba(var(--theme-accent-rgb), 0.74));
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-engine .race-meter-arc-value {
+  stroke: url(#race-engine-gradient);
+  filter: drop-shadow(0 0 4px rgba(var(--theme-alt-rgb), 0.72));
+}
+
+.hud.is-vehicle.is-race-mode .race-gradient-warm { stop-color: #fb923c; }
+.hud.is-vehicle.is-race-mode .race-gradient-accent { stop-color: var(--theme-accent); }
+.hud.is-vehicle.is-race-mode .race-gradient-alt { stop-color: var(--theme-alt); }
+.hud.is-vehicle.is-race-mode .race-gradient-danger { stop-color: #fb4f64; }
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-value.is-warning {
+  stroke: var(--theme-accent);
+  filter: drop-shadow(0 0 5px rgba(var(--theme-accent-rgb), 0.78));
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-fuel .race-meter-arc-value.is-warning {
+  stroke: url(#race-fuel-gradient);
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-value.is-danger {
+  stroke: #fb4f64;
+  filter: drop-shadow(0 0 6px rgba(251, 79, 100, 0.88));
+}
+
+.hud.is-vehicle.is-race-mode .meter-row > .race-meter-icon {
+  position: absolute;
+  z-index: 2;
+  top: 23%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  display: grid;
+  width: clamp(22px, 1.75vw, 28px);
+  height: clamp(22px, 1.75vw, 28px);
+  place-items: center;
+  color: rgb(var(--theme-text-rgb));
+  translate: -50% 0;
+  opacity: 0.9;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-icon svg {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 4px rgba(var(--theme-accent-rgb), 0.34));
+}
+
+.hud.is-vehicle.is-race-mode .fuel-row .race-meter-icon svg {
+  transform: scaleX(1.02) scaleY(0.98);
+  transform-origin: center;
+}
+
+.hud.is-vehicle.is-race-mode .engine-row .race-meter-icon svg {
+  transform: translate(2px, -1px) scaleX(1.3) scaleY(1.05);
+  transform-origin: center;
+  opacity: 0.82;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hud.is-vehicle.is-race-mode .meter-row > strong {
+  position: absolute;
+  z-index: 2;
+  top: 48.5%;
+  left: 50%;
+  width: 48%;
+  color: rgb(var(--theme-text-rgb));
+  font-size: clamp(18px, 1.5vw, 27px);
+  font-weight: 680;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 0 8px rgba(var(--theme-text-rgb), 0.22);
+  translate: -50% 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud.is-vehicle.is-race-mode .meter-row > strong::after {
+  margin-left: 1px;
+  color: rgba(var(--theme-text-rgb), 0.82);
+  font-size: 0.66em;
+  content: "%";
+}
+
+.hud.is-vehicle.is-race-mode .fuel-row > strong {
+  translate: calc(-50% - 2px) 0;
+}
+
+.hud.is-vehicle.is-race-mode .engine-row > strong {
+  translate: calc(-50% + 2px) 0;
+}
+
+.hud.is-vehicle.is-race-mode .meter-row > .meter-label {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: -2.3%;
+  left: 0;
+  top: auto;
+  width: auto;
+  height: auto;
+  color: rgb(var(--theme-text-rgb));
+  font-size: clamp(10px, 0.82vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-align: center;
+  opacity: 0.86;
+  transform: scaleX(0.95);
+}
+
+.hud.is-vehicle.is-race-mode .meter-track {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .meter-row::before,
+.hud.is-vehicle.is-race-mode .meter-row::after {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(8.5% + 1px);
+  color: rgba(var(--theme-muted-rgb), 0.78);
+  font-size: clamp(9px, 0.72vw, 12px);
+  font-weight: 850;
+  line-height: 1;
+}
+
+.hud.is-vehicle.is-race-mode .meter-row::before { left: 19%; }
+.hud.is-vehicle.is-race-mode .meter-row::after { right: 19%; }
+.hud.is-vehicle.is-race-mode .fuel-row::before { left: calc(19% - 1.5px); color: #fb4f64; content: "E"; }
+.hud.is-vehicle.is-race-mode .fuel-row::after { right: calc(19% + 2px); color: #4ade80; content: "F"; }
+.hud.is-vehicle.is-race-mode .engine-row::before { left: calc(19% - 1px); color: #fb4f64; content: "H"; }
+.hud.is-vehicle.is-race-mode .engine-row::after { right: calc(19% - 1.5px); color: #4ade80; content: "C"; }
+
+/* Dedicated side pods: seatbelt left, nitro right. */
+.hud.is-vehicle.is-race-mode .race-seatbelt-light,
+.hud.is-vehicle.is-race-mode .nitro-gauge {
+  position: absolute;
+  z-index: 5;
+  top: 68%;
+  display: grid;
+  width: var(--race-pod);
+  height: var(--race-pod);
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--theme-surface-soft-rgb), 0.86), rgba(var(--theme-surface-rgb), 0.99) 68%);
+  box-shadow:
+    0 0 0 4px rgba(var(--theme-surface-rgb), 0.94),
+    0 0 0 6px rgba(var(--theme-muted-rgb), 0.2),
+    0 0 0 9px rgba(var(--theme-surface-rgb), 0.72),
+    0 0 0 10px color-mix(in srgb, currentColor 18%, transparent),
+    0 10px 19px rgba(0, 0, 0, 0.46),
+    0 0 14px color-mix(in srgb, currentColor 34%, transparent),
+    inset 0 1px rgba(255, 255, 255, 0.07);
+  translate: 0 -50%;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light {
+  left: 0.7%;
+  color: #7ee568;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge {
+  right: 1.2%;
+  color: var(--nitro-color);
+  opacity: 1;
+  transition: color 180ms ease, opacity 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light::before,
+.hud.is-vehicle.is-race-mode .nitro-gauge::before {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  width: 9%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+  content: "";
+  translate: -50% 0;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light::after,
+.hud.is-vehicle.is-race-mode .nitro-gauge::after {
+  position: absolute;
+  inset: 14%;
+  border: 1px solid color-mix(in srgb, currentColor 54%, transparent);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light.is-unavailable,
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-safety-hidden {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light svg {
+  width: 41%;
+  height: 41%;
+  overflow: visible;
+  filter: drop-shadow(0 0 2px currentColor);
+  translate: 0 2px;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light path {
+  fill: currentColor;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light.is-buckled {
+  color: #72dc67;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light.is-buckled svg {
+  width: 37%;
+  height: 41%;
+  filter: drop-shadow(0 0 1px rgba(114, 220, 103, 0.56));
+  translate: 4px 1px;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light.is-buckled::before {
+  left: calc(50% + 2px);
+  width: 7%;
+  box-shadow: 0 0 3px rgba(114, 220, 103, 0.72);
+  translate: -50% 0;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light.is-buckled::after {
+  border-color: rgba(114, 220, 103, 0.22);
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light.is-unbuckled {
+  color: #fb4f64;
+  background: radial-gradient(circle, rgba(127, 29, 29, 0.52), rgba(var(--theme-surface-rgb), 0.99) 70%);
+  animation: race-ref-seatbelt-warning 1s ease-in-out infinite;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-ring {
+  position: absolute;
+  inset: 12%;
+  width: 76%;
+  height: 76%;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: 34%;
+  height: 34%;
+  translate: -50% -50%;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge .seatbelt-icon {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-nitro-value {
+  position: absolute;
+  right: 0;
+  bottom: 21%;
+  left: 0;
+  display: none;
+  color: rgb(var(--theme-text-rgb));
+  font-size: clamp(11px, 0.9vw, 16px);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 0 5px currentColor;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-low {
+  --nitro-color: #fb923c;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-critical {
+  --nitro-color: #fb4f64;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-disabled {
+  --nitro-color: #747b89;
+  color: #747b89;
+  animation: none;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-disabled::before {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-disabled::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: 38%;
+  height: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: #747b89;
+  content: "";
+  opacity: 0.38;
+  transform: translate(-50%, -50%) rotate(-48deg);
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-disabled .nitro-ring,
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-disabled .race-nitro-value {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-disabled .nitro-icon {
+  top: 50%;
+  width: 34%;
+  height: 34%;
+  color: #747b89;
+  filter: none;
+  opacity: 0.48;
+  translate: -50% -50%;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-changing .nitro-icon {
+  animation: nitro-icon-breathe 0.72s ease-in-out infinite;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge.is-empty-attempt {
+  animation: race-ref-empty-nitro 0.9s ease-in-out;
+}
+
+/* Nitro energizes the same components without changing their geometry. */
+.hud.is-vehicle.is-race-mode.is-nitro-active .vehicle-panel {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+}
+
+.hud.is-vehicle.is-race-mode.is-nitro-active .vehicle-panel::before,
+.hud.is-vehicle.is-race-mode.is-nitro-active .vehicle-panel::after {
+  display: none;
+  background: none;
+  content: none;
+  animation: none;
+}
+
+.hud.is-vehicle.is-race-mode.is-nitro-active .race-chassis {
+  background: linear-gradient(100deg, rgba(34, 211, 238, 0.86), rgba(103, 232, 249, 0.96) 50%, rgba(8, 145, 178, 0.86));
+  filter:
+    drop-shadow(0 16px 24px rgba(0, 0, 0, 0.52))
+    drop-shadow(0 0 12px rgba(34, 211, 238, 0.62));
+}
+
+.hud.is-vehicle.is-race-mode.is-nitro-active .race-chassis::before {
+  background:
+    linear-gradient(105deg, transparent 20%, rgba(103, 232, 249, 0.05) 35%, rgba(207, 250, 254, 0.18) 50%, rgba(103, 232, 249, 0.05) 65%, transparent 80%),
+    linear-gradient(180deg, rgba(9, 38, 52, 0.99), rgba(var(--theme-surface-rgb), 0.99));
+  background-size: 240% 100%, 100% 100%;
+  animation: race-ref-nitro-scan 720ms linear infinite;
+}
+
+.hud.is-vehicle.is-race-mode.is-nitro-active .speed-block strong {
+  color: #cffafe;
+  text-shadow: 0 0 10px rgba(103, 232, 249, 0.92), 0 0 24px rgba(34, 211, 238, 0.46);
+}
+
+.hud.is-vehicle.is-race-mode.is-nitro-active .speed-unit,
+.hud.is-vehicle.is-race-mode.is-nitro-active .speed-label {
+  color: #67e8f9;
+}
+
+.hud.is-vehicle.is-race-mode.is-nitro-active .nitro-gauge {
+  --nitro-color: #67e8f9;
+  background: radial-gradient(circle, rgba(14, 116, 144, 0.56), rgba(8, 47, 73, 0.94) 70%);
+  animation: race-ref-nitro-pod 430ms ease-in-out infinite;
+}
+
+.hud.is-vehicle.is-race-mode.is-nitro-active:not(.is-emergency-lights) .vehicle-accent {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #0891b2, #67e8f9, #0891b2, transparent);
+  background-size: 220% 100%;
+  box-shadow: 0 0 10px rgba(103, 232, 249, 0.82);
+  animation: race-ref-accent-flow 620ms linear infinite;
+}
+
+/* Emergency red/blue indication has visual priority over nitro. */
+.hud.is-vehicle.is-race-mode.is-emergency-lights .race-chassis {
+  background: linear-gradient(100deg, rgba(251, 79, 100, 0.94), rgba(168, 85, 247, 0.86) 48%, rgba(59, 130, 246, 0.96));
+  filter:
+    drop-shadow(0 16px 24px rgba(0, 0, 0, 0.52))
+    drop-shadow(-4px 0 8px rgba(251, 79, 100, 0.42))
+    drop-shadow(4px 0 8px rgba(59, 130, 246, 0.42));
+}
+
+.hud.is-vehicle.is-race-mode.is-emergency-lights .vehicle-accent {
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #fb4f64 18%, #a855f7 42%, #3b82f6 62%, #fb4f64 84%, transparent);
+  background-size: 220% 100%;
+  box-shadow: 0 0 9px rgba(239, 68, 68, 0.58), 0 0 13px rgba(59, 130, 246, 0.44);
+  opacity: 1;
+  animation: race-ref-emergency-flow 1.35s ease-in-out infinite;
+}
+
+/* TAB nitro detail remains measured by the existing layout-anchor code. */
+.hud.is-vehicle.is-race-mode .vehicle-detail-panel {
+  right: auto;
+  bottom: calc(var(--race-bottom) + var(--race-height) + 10px);
+  left: 50%;
+  width: 220px;
+  margin-left: calc(var(--race-half) - 220px);
+  transform-origin: right bottom;
+}
+
+.hud.is-vehicle.is-race-mode .minimap-frame {
+  bottom: calc(max(2.45vh, calc(var(--safe-zone-y) + 0.8vh)) + 11px);
+  left: calc(var(--safe-zone-x) - 4px);
+  width: 17.5vw;
+  min-width: 239px;
+  max-width: 336px;
+  box-shadow:
+    0 0 0 4px rgba(var(--theme-surface-rgb), 0.9),
+    0 12px 30px rgba(0, 0, 0, 0.38),
+    inset 0 22px 24px -20px rgba(var(--theme-surface-rgb), 0.96),
+    inset 0 -22px 24px -20px rgba(var(--theme-surface-rgb), 0.96),
+    inset 22px 0 24px -20px rgba(var(--theme-surface-rgb), 0.96),
+    inset -22px 0 24px -20px rgba(var(--theme-surface-rgb), 0.96);
+}
+
+/* The native radar changes layout immediately. Keep the custom frame geometry
+   synchronous so it cannot drift away while race mode is switching. */
+.hud.is-vehicle .minimap-frame {
+  transition:
+    opacity 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+/* Keep centered children centered while shared entry/exit transforms run. */
+.hud.is-vehicle.is-race-mode.is-vehicle-entering:not(.is-panels-hidden) .speed-block,
+.hud.is-vehicle.is-race-mode.is-vehicle-entering:not(.is-panels-hidden) .gear-block,
+.hud.is-vehicle.is-race-mode.is-vehicle-entering:not(.is-panels-hidden) .vehicle-meters,
+.hud.is-vehicle.is-race-mode.is-vehicle-exiting .speed-block,
+.hud.is-vehicle.is-race-mode.is-vehicle-exiting .gear-block,
+.hud.is-vehicle.is-race-mode.is-vehicle-exiting .vehicle-meters {
+  animation-name: race-ref-content-reveal;
+}
+
+.hud.is-vehicle .vehicle-panel.is-race-switching-out,
+.hud.is-vehicle .vehicle-panel.is-race-switching-in {
+  transform-origin: center bottom;
+}
+
+@keyframes race-ref-content-reveal {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes race-ref-redline-rail {
+  0%, 100% { filter: saturate(1) brightness(0.9); }
+  50% { filter: saturate(1.3) brightness(1.28); }
+}
+
+@keyframes race-ref-redline-gear {
+  0%, 100% { filter: brightness(0.9); }
+  50% { filter: brightness(1.3); }
+}
+
+@keyframes race-ref-seatbelt-warning {
+  0%, 100% { filter: brightness(0.86); transform: translateX(2px) scale(0.96); }
+  50% { filter: brightness(1.3); transform: translateX(2px) scale(1.06); }
+}
+
+@keyframes race-ref-empty-nitro {
+  0%, 100% { filter: brightness(1); transform: scale(1); }
+  38% { filter: brightness(1.5); transform: scale(1.1); }
+}
+
+@keyframes race-ref-nitro-scan {
+  from { background-position: 125% 0, 0 0; }
+  to { background-position: -125% 0, 0 0; }
+}
+
+@keyframes race-ref-nitro-pod {
+  0%, 100% { filter: brightness(0.92); transform: scale(0.97); }
+  50% { filter: brightness(1.24); transform: scale(1.05); }
+}
+
+@keyframes race-ref-accent-flow {
+  from { background-position: 130% 0; }
+  to { background-position: -130% 0; }
+}
+
+@keyframes race-ref-emergency-flow {
+  0%, 100% { background-position: 0 0; filter: brightness(0.9); }
+  50% { background-position: 100% 0; filter: brightness(1.22); }
+}
+
+@media (max-width: 1400px) {
+  .hud.is-race-mode {
+    --race-width: min(920px, calc(100vw - var(--safe-zone-x) - var(--safe-zone-x) - 32px));
+    --race-half: 460px;
+    --race-height: clamp(216px, 18vw, 240px);
+    --race-pod: clamp(76px, 6.4vw, 86px);
+  }
+
+  .hud.is-vehicle.is-race-mode .vehicle-panel,
+  .hud.is-vehicle.is-race-mode .vehicle-detail-panel {
+    transform: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .hud.is-race-mode {
+    --race-width: min(790px, calc(100vw - var(--safe-zone-x) - var(--safe-zone-x) - 28px));
+    --race-half: 395px;
+    --race-height: 205px;
+    --race-pod: 72px;
+  }
+
+  .hud.is-vehicle.is-race-mode .race-rpm-ticks,
+  .hud.is-vehicle.is-race-mode .meter-row::before,
+  .hud.is-vehicle.is-race-mode .meter-row::after {
+    display: none;
+  }
+
+  .hud.is-vehicle.is-race-mode .vehicle-detail-panel {
+    margin-left: 0;
+    translate: -50% 0;
+    transform-origin: center bottom;
+  }
+}
+
+@media (max-width: 700px) {
+  .hud.is-race-mode {
+    --race-width: calc(100vw - var(--safe-zone-x) - var(--safe-zone-x) - 20px);
+    --race-half: calc(50vw - 10px);
+    --race-height: 160px;
+    --race-pod: 56px;
+  }
+
+  .hud.is-vehicle.is-race-mode .speed-block strong {
+    font-size: 58px;
+  }
+
+  .hud.is-vehicle.is-race-mode .race-meter-icon {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud.is-vehicle.is-race-mode *,
+  .hud.is-vehicle.is-race-mode *::before,
+  .hud.is-vehicle.is-race-mode *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Production chassis artwork. Dynamic values and state effects remain HTML/SVG. */
+.hud.is-vehicle.is-race-mode .race-chassis-asset {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+  filter:
+    brightness(0.8)
+    saturate(0.86)
+    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.54));
+}
+
+.hud.is-vehicle.is-race-mode .race-chassis {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-rpm-strip {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-rpm-strip::before {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .vehicle-accent {
+  opacity: 0;
+}
+
+.hud.is-vehicle.is-race-mode.is-nitro-active .vehicle-accent,
+.hud.is-vehicle.is-race-mode.is-emergency-lights .vehicle-accent {
+  opacity: 1;
+}
+
+.hud.is-vehicle.is-race-mode .gear-block {
+  border: 0;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(var(--theme-accent-rgb), 0.08), transparent 42%),
+    linear-gradient(155deg, rgba(18, 21, 34, 0.985), rgba(5, 7, 15, 0.99));
+  box-shadow: none;
+}
+
+.hud.is-vehicle.is-race-mode .gear-block strong {
+  top: 8%;
+}
+
+.hud.is-vehicle.is-race-mode .speed-block::after,
+.hud.is-vehicle.is-race-mode .meter-row > .race-meter-bezel {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-arc-track {
+  opacity: 1;
+}
+
+.hud.is-vehicle.is-race-mode .race-meter-segment {
+  stroke: transparent;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light,
+.hud.is-vehicle.is-race-mode .nitro-gauge,
+.hud.is-vehicle.is-race-mode.is-nitro-active .nitro-gauge {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hud.is-vehicle.is-race-mode .race-seatbelt-light::after,
+.hud.is-vehicle.is-race-mode .nitro-gauge::after {
+  border-color: color-mix(in srgb, currentColor 24%, transparent);
+}
+
+.hud.is-vehicle.is-race-mode .nitro-gauge::after {
+  display: none;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-ring-track,
+.hud.is-vehicle.is-race-mode .nitro-ring-value {
+  stroke-width: 1.7;
+}
+
+.hud.is-vehicle.is-race-mode .nitro-ring-value {
+  filter: drop-shadow(0 0 1.5px var(--nitro-color));
+}
+
+.hud.is-vehicle.is-race-mode.is-nitro-active .race-chassis-asset {
+  filter:
+    brightness(0.8)
+    saturate(0.86)
+    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.54))
+    drop-shadow(0 0 8px rgba(34, 211, 238, 0.36));
+}
+
+.hud.is-vehicle.is-race-mode.is-emergency-lights .race-chassis-asset {
+  filter:
+    brightness(0.8)
+    saturate(0.86)
+    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.54))
+    drop-shadow(-3px 0 5px rgba(251, 79, 100, 0.28))
+    drop-shadow(3px 0 5px rgba(59, 130, 246, 0.28));
+}

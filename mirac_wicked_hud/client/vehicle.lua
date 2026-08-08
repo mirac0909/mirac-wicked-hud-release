@@ -486,6 +486,7 @@ local function vehicleSnapshot(vehicle)
     updateVehicleWarningSounds(vehicle, fuel, engine)
 
     return {
+        initializing = false,
         speed = Hud.round(speed),
         rpm = rpm,
         fuel = fuel,
@@ -559,6 +560,21 @@ local function onVehicleChanged(vehicle)
     resetCrashDetection()
 
     if inVehicle then
+        Hud.sendNuiUpdate({
+            vehicle = {
+                initializing = true,
+                speed = 0,
+                rpm = 0,
+                fuel = 0,
+                engine = 0,
+                nitro = false,
+                nitroActive = false,
+                seatbeltAvailable = false,
+                seatbelt = false,
+                emergencyLights = false,
+                gear = 'N'
+            }
+        }, true)
         CreateThread(primeMinimap)
     else
         Hud.vehicle.warmupFrames = 0

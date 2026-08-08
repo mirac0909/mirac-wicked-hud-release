@@ -5,7 +5,7 @@ Open-source FiveM HUD for **Qbox** using **ox_lib**. The resource keeps framewor
 ## Release
 
 - Resource folder: `mirac_wicked_hud`
-- Version: `1.4.0-beta.2`
+- Version: `2.0.0-beta.1`
 - License: MIT
 - Tested development stack from the supplied server snapshot: qbx_core 1.23.0 and ox_lib 3.39.0
 
