@@ -39,8 +39,7 @@ bridges so server owners can configure integrations without editing the NUI.
     <td><img src="assets/screenshots/vehicle-critical-status.jpg" alt="Vehicle HUD with critical status values"></td>
   </tr>
   <tr>
-    <td><img src="assets/screenshots/race-hud-nitro-active.jpg" alt="Race vehicle HUD with active nitro effects"></td>
-    <td><img src="assets/screenshots/race-hud-night-drive.png" alt="Race vehicle HUD during nighttime driving"></td>
+    <td colspan="2"><img src="assets/screenshots/race-hud-night-drive.png" alt="Race vehicle HUD during nighttime driving"></td>
   </tr>
 </table>
 
