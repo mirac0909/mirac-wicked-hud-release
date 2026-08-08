@@ -2,7 +2,7 @@
 
 ## Supported version
 
-Security fixes are applied to the latest release, currently `1.4.0-beta.2`.
+Security fixes are applied to the latest release, currently `2.0.0-beta.1`.
 
 ## Reporting
 

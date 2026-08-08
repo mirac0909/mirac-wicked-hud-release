@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0-beta.1 — 2026-08-09
+
+- Introduced the redesigned full-width race cockpit with a dedicated chassis,
+  segmented RPM strip, circular fuel and engine telemetry, and separate
+  seatbelt and nitro pods.
+- Added responsive race HUD sizing and a compact global scale tuned 15%
+  smaller for improved gameplay visibility.
+- Added deterministic vehicle-entry initialization so stale speed, gear,
+  fuel, engine, nitro and safety values are cleared before live telemetry.
+- Fixed the normal vehicle HUD fuel row being displaced by race-only markup.
+- Refreshed the repository race HUD preview with the current in-game design.
+
 ## 1.4.0-beta.2 — 2026-08-02
 
 - Added an ultra-minimal pedestrian HUD mode with a compact status layout and

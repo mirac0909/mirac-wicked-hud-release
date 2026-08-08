@@ -264,10 +264,63 @@ const vehicleUi = {
   engineArc: document.getElementById('engine-arc-value'),
   nitroGauge: document.getElementById('nitro-gauge'),
   nitroRing: document.getElementById('nitro-ring-value'),
+  raceNitroValue: document.getElementById('race-nitro-value'),
   raceSeatbelt: document.getElementById('race-seatbelt-light'),
   detailNitro: document.getElementById('vehicle-detail-nitro'),
   detailNitroValue: document.getElementById('vehicle-detail-nitro-value')
 };
+
+const RACE_METER_SEGMENT_COUNT = 10;
+const RACE_METER_START_ANGLE = 125;
+const RACE_METER_ANGLE_STEP = 29;
+const RACE_METER_SEGMENT_GAP = 2;
+const RACE_METER_CENTER_X = 50;
+const RACE_METER_CENTER_Y = 50.7;
+const RACE_METER_RADIUS_X = 43.1;
+const RACE_METER_RADIUS_Y = 39.2;
+
+function raceMeterPoint(angle) {
+  const radians = angle * Math.PI / 180;
+  return {
+    x: RACE_METER_CENTER_X + (RACE_METER_RADIUS_X * Math.cos(radians)),
+    y: RACE_METER_CENTER_Y + (RACE_METER_RADIUS_Y * Math.sin(radians))
+  };
+}
+
+function buildRaceMeterSegments(name) {
+  const group = document.querySelector(`[data-race-meter="${name}"]`);
+  if (!group) return [];
+
+  const fragment = document.createDocumentFragment();
+  const segments = [];
+  for (let index = 0; index < RACE_METER_SEGMENT_COUNT; index += 1) {
+    const track = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const segment = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const zoneClass = index < 3 ? ' is-low-zone' : (index >= 6 ? ' is-high-zone' : '');
+    track.setAttribute('class', 'race-meter-segment-track');
+    segment.setAttribute('class', `race-meter-segment${zoneClass}`);
+    track.setAttribute('pathLength', '100');
+    segment.setAttribute('pathLength', '100');
+    const startAngle = RACE_METER_START_ANGLE + (index * RACE_METER_ANGLE_STEP) + RACE_METER_SEGMENT_GAP;
+    const isLastSegment = index === RACE_METER_SEGMENT_COUNT - 1;
+    const endAngle = RACE_METER_START_ANGLE
+      + ((index + 1) * RACE_METER_ANGLE_STEP)
+      - (isLastSegment ? 0 : RACE_METER_SEGMENT_GAP);
+    const start = raceMeterPoint(startAngle);
+    const end = raceMeterPoint(endAngle);
+    const pathData = `M${start.x.toFixed(2)} ${start.y.toFixed(2)}A${RACE_METER_RADIUS_X} ${RACE_METER_RADIUS_Y} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+    track.setAttribute('d', pathData);
+    segment.setAttribute('d', pathData);
+    fragment.appendChild(track);
+    fragment.appendChild(segment);
+    segments.push(segment);
+  }
+  group.appendChild(fragment);
+  return segments;
+}
+
+vehicleUi.fuelSegments = buildRaceMeterSegments('fuel');
+vehicleUi.engineSegments = buildRaceMeterSegments('engine');
 
 let lastNitroValue = null;
 let nitroChangeTimer = null;
@@ -945,6 +998,7 @@ function setVehicleRpm(value) {
   const rpm = Math.round(clamp(value));
   vehicleUi.gearRpmRing.style.strokeDashoffset = String(100 - rpm);
   vehicleUi.raceRpmBar.style.width = `${rpm}%`;
+  vehicleUi.raceRpmBar.style.setProperty('--race-rpm-progress', (rpm / 100).toFixed(2));
   vehicleUi.raceRpmBar.classList.toggle('is-high', rpm >= 72 && rpm < 90);
   vehicleUi.raceRpmBar.classList.toggle('is-redline', rpm >= 90);
   vehicleUi.gearShell.classList.toggle('is-rpm-high', rpm >= 72 && rpm < 90);
@@ -955,6 +1009,7 @@ function setVehicleMeter(bar, value) {
   const warningThreshold = Number(hudConfig.vehicleWarnings?.warningThreshold) || 60;
   const dangerThreshold = Number(hudConfig.vehicleWarnings?.dangerThreshold) || 35;
   const arc = bar === vehicleUi.fuelBar ? vehicleUi.fuelArc : vehicleUi.engineArc;
+  const segments = bar === vehicleUi.fuelBar ? vehicleUi.fuelSegments : vehicleUi.engineSegments;
   const warning = value <= warningThreshold && value > dangerThreshold;
   const danger = value <= dangerThreshold;
   bar.style.width = `${value}%`;
@@ -966,11 +1021,31 @@ function setVehicleMeter(bar, value) {
     arc.classList.toggle('is-warning', warning);
     arc.classList.toggle('is-danger', danger);
   }
+
+  if (segments?.length) {
+    const scaledValue = (clamp(value) / 100) * segments.length;
+    const fullCount = Math.floor(scaledValue);
+    const partialFill = scaledValue - fullCount;
+    segments.forEach((segment, index) => {
+      const isFull = index < fullCount;
+      const isPartial = index === fullCount && partialFill > 0.001;
+      segment.classList.toggle('is-active', isFull || isPartial);
+      segment.classList.toggle('is-partial', isPartial);
+      segment.classList.toggle('is-warning', warning);
+      segment.classList.toggle('is-danger', danger);
+      if (isPartial) {
+        segment.setAttribute('stroke-dasharray', `${(partialFill * 100).toFixed(2)} 100`);
+      } else {
+        segment.removeAttribute('stroke-dasharray');
+      }
+    });
+  }
 }
 
 function setVehicleNitro(value, animate = true) {
   const nitro = Math.round(clamp(value));
   vehicleUi.nitroRing.style.strokeDashoffset = String(100 - nitro);
+  if (vehicleUi.raceNitroValue) vehicleUi.raceNitroValue.textContent = String(nitro);
   vehicleUi.nitroGauge.setAttribute('aria-label', translate('nitro_percent', nitro));
   vehicleUi.nitroGauge.classList.toggle('is-low', nitro > 10 && nitro <= 35);
   vehicleUi.nitroGauge.classList.toggle('is-critical', nitro <= 10);
@@ -985,6 +1060,29 @@ function setVehicleNitro(value, animate = true) {
   lastNitroValue = nitro;
 }
 
+function resetVehicleIndicators() {
+  fields.speed.textContent = '000';
+  fields.gear.textContent = 'N';
+  fields.fuel.textContent = '0';
+  fields.engine.textContent = '0';
+
+  vehicleUi.gearPrevious.textContent = '';
+  vehicleUi.gearPrevious.classList.remove('is-leaving-left', 'is-leaving-right');
+  fields.gear.classList.remove('is-entering-right', 'is-entering-left');
+  setVehicleRpm(0);
+  setVehicleMeter(vehicleUi.fuelBar, 0);
+  setVehicleMeter(vehicleUi.engineBar, 0);
+
+  vehicleUi.detailNitro.classList.add('is-hidden');
+  vehicleDetailPanel.classList.remove('has-nitro');
+  vehicleUi.detailNitroValue.textContent = '0';
+  vehicleUi.nitroRing.style.strokeDashoffset = '100';
+  if (vehicleUi.raceNitroValue) vehicleUi.raceNitroValue.textContent = '0';
+
+  resetVehicleSafetySlot();
+  renderSafetySlot();
+}
+
 function getSafetySlotFallback() {
   if (vehicleSafetyState.seatbeltAvailable && vehicleSafetyState.seatbelt !== true) return 'seatbelt';
   if (vehicleSafetyState.hasNitro && vehicleSafetyState.nitro > 0) return 'nitro';
@@ -995,7 +1093,8 @@ function getSafetySlotFallback() {
 function renderSafetySlot() {
   if (activeRaceMode === true) {
     const showNitro = vehicleSafetyState.hasNitro;
-    vehicleUi.nitroGauge.classList.toggle('is-safety-hidden', !showNitro);
+    vehicleUi.nitroGauge.classList.remove('is-safety-hidden');
+    vehicleUi.nitroGauge.classList.toggle('is-disabled', !showNitro);
     vehicleUi.nitroGauge.classList.remove(
       'is-seatbelt',
       'is-unbuckled',
@@ -1009,6 +1108,7 @@ function renderSafetySlot() {
   const showNitro = safetySlotOwner === 'nitro' && vehicleSafetyState.hasNitro;
   const showSeatbelt = safetySlotOwner === 'seatbelt' && vehicleSafetyState.seatbeltAvailable;
 
+  vehicleUi.nitroGauge.classList.remove('is-disabled');
   vehicleUi.nitroGauge.classList.toggle('is-safety-hidden', !showNitro && !showSeatbelt);
   vehicleUi.nitroGauge.classList.toggle('is-seatbelt', showSeatbelt);
   vehicleUi.nitroGauge.classList.toggle('is-unbuckled', showSeatbelt && vehicleSafetyState.seatbelt !== true);
@@ -1123,6 +1223,7 @@ function resetVehicleSafetySlot() {
     'is-empty-attempt',
     'is-low',
     'is-critical',
+    'is-disabled',
     'is-seatbelt',
     'is-unbuckled'
   );
@@ -1351,6 +1452,10 @@ function updateVehicle(vehicle) {
   }
 
   const modeChanged = nextVehicleMode !== vehicleMode;
+
+  if (nextVehicleMode && (modeChanged || vehicle.initializing === true)) {
+    resetVehicleIndicators();
+  }
 
   if (modeChanged) {
     clearTransientStatusRows();
