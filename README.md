@@ -40,7 +40,7 @@ bridges so server owners can configure integrations without editing the NUI.
   </tr>
   <tr>
     <td><img src="assets/screenshots/race-hud-nitro-active.jpg" alt="Race vehicle HUD with active nitro effects"></td>
-    <td><img src="assets/screenshots/race-hud-rpm-warning.jpg" alt="Race vehicle HUD with high RPM warning colors"></td>
+    <td><img src="assets/screenshots/race-hud-night-drive.png" alt="Race vehicle HUD during nighttime driving"></td>
   </tr>
 </table>
 
