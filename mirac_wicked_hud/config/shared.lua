@@ -163,7 +163,8 @@ Config.VehicleCrashEffect = {
 Config.Minimap = {
     mode = 'vehicle', -- vehicle, always, never
     hideNativeVitals = true,
-    zoom = 1125 -- subtle zoom-out; higher values show a wider area
+    zoom = 1125, -- subtle zoom-out; higher values show a wider area
+    restoreZoom = 1100 -- native/default zoom applied when this resource stops
 }
 
 -- Keeps HUD edges inside the GTA safe-zone without changing the visual design.
@@ -177,6 +178,7 @@ Config.DefaultSettings = {
     location = true,
     minimal = false,
     raceMode = false,
+    raceHudSize = 'medium', -- small, medium, large
     position = 'top-right',
     palette = 'ocean',
     opacity = 100 -- 40-100; lower values make the whole HUD more transparent

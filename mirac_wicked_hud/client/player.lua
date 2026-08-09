@@ -1,3 +1,5 @@
+if Hud.configValid ~= true then return end
+
 Hud.player = Hud.player or {
     metadata = {},
     street = '',
@@ -142,6 +144,8 @@ for logicalName, stateKey in pairs(Config.Metadata) do
 end
 
 CreateThread(function()
+    if not Hud.awaitConfigValidation() then return end
+
     while true do
         if not Hud.shouldShow() then
             Hud.sendVisibility(false, false)

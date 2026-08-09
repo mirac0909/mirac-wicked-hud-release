@@ -8,7 +8,7 @@ saklar ve GTAV Legacy ile GTAV Enhanced ses sistemlerini destekler.
 ## Dağıtım bilgisi
 
 - Resource klasörü: `mirac_wicked_hud`
-- Sürüm: `2.0.0-beta.1`
+- Sürüm: `2.0.0-beta.2`
 - Lisans: MIT
 - Doğrulanan geliştirme tabanı: qbx_core 1.23.0, ox_lib 3.39.0
 
@@ -17,14 +17,15 @@ saklar ve GTAV Legacy ile GTAV Enhanced ses sistemlerini destekler.
 - Eski QBCore core object kullanmadan Qbox PlayerData entegrasyonu
 - ox_lib callback, keybind, locale, cache ve notification kullanımı
 - Server-authoritative başlangıç karakter ve metadata verisi
-- Can, zırh, stamina, tokluk ve susuzluk HUD'u
-- Normal ve minimal gösterim; kritik değerleri otomatik açığa çıkarma
-- Hız, vites, yakıt, motor ve opsiyonel nitro araç HUD'u
+- Can, zırh, stamina, oksijen, tokluk ve susuzluk HUD'u
+- Normal, minimalist ve ultra minimalist gösterim; kritik değerleri otomatik açığa çıkarma
+- Normal araç HUD'ı ve kalıcı Küçük, Orta ve Büyük boyut seçeneklerine sahip yenilenen yarış kokpiti
+- Araç değişiminde temiz başlangıçla hız, vites, yakıt, motor ve opsiyonel nitro göstergeleri
 - Araçta / sürekli / kapalı minimap seçenekleri
 - Native, statebag, export ve custom yakıt adaptörleri
 - `sv_mumble` gerektirmeyen GTAV Enhanced ses göstergesi
 - Otomatik pma-voice algılama ve üç kademeli ses mesafesi adaptörü
-- 10 renk paleti ve yüzde 40-100 global HUD şeffaflığı
+- 15 renk paleti ve yüzde 40-100 global HUD şeffaflığı
 - Sağ üst, sol üst ve sağ alt yerleşimler
 - GTA safe-zone uyumlu kenar boşlukları
 - NUI hazır olma kuyruğu ve değişmeyen veriyi tekrar göndermeyen patch sistemi
@@ -73,7 +74,10 @@ Ayrıntılı kurulum için [INSTALL_TR.md](INSTALL_TR.md) dosyasına bak.
 | `/hudreset` | Oyuncunun yerel görsel HUD ayarlarını sıfırlar |
 | `/hudyenile` / `/hudrefresh` | Kayıtlı ayarları değiştirmeden yerel HUD görünümünü yeniden kurar |
 
-`/hudreset`; görünürlük, normal/minimal mod, araç HUD görünümü, konum, palet ve şeffaflığı
+Ayar menüsünde yarış kokpiti için Küçük, Orta ve Büyük boyutları da bulunur. Seçim oyuncuya özel
+olarak yerelde saklanır.
+
+`/hudreset`; görünürlük, normal/minimal mod, araç HUD görünümü ve boyutu, konum, palet ve şeffaflığı
 `Config.DefaultSettings` değerlerine döndürür. Can, zırh, stamina, tokluk,
 susuzluk, citizen ID veya başka bir framework/oynanış değerini değiştirmez.
 
@@ -240,7 +244,8 @@ kemer fallback göstergesi açılmaz.
 `Config.VehicleWarnings` bölümleri custom ses yolu ve ses seviyelerini
 yönetir. Özel dosyalar `web/dist/sounds` altında `.ogg`, `.mp3` veya `.wav`
 olarak tutulur. Ses ya da config değişikliğinden sonra HUD yeniden
-başlatılmalıdır.
+başlatılmalıdır. Yapılandırılmış custom kemer veya uyarı dosyası bulunamazsa
+HUD sessiz kalmak yerine tanımlı native frontend sesine geri döner.
 
 ## Güvenlik modeli
 

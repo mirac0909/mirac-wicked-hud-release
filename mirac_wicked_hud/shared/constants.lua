@@ -32,6 +32,12 @@ Hud.positions = {
     ['bottom-right'] = true
 }
 
+Hud.raceHudSizes = {
+    small = true,
+    medium = true,
+    large = true
+}
+
 Hud.palettes = {
     ocean = true,
     emerald = true,
@@ -103,6 +109,14 @@ Hud.nuiLocaleKeys = {
     'vehicle_mode_normal_description',
     'race',
     'race_description',
+    'race_hud_size',
+    'race_hud_size_description',
+    'race_size_small',
+    'race_size_small_description',
+    'race_size_medium',
+    'race_size_medium_description',
+    'race_size_large',
+    'race_size_large_description',
     'palette_title',
     'palette_description',
     'palette_ocean',

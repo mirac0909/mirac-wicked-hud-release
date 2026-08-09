@@ -10,6 +10,7 @@ const locationPanel = document.getElementById('location-panel');
 const statusDock = document.getElementById('status-dock');
 const identitySummary = document.querySelector('.identity-summary');
 const minimapFrame = document.getElementById('minimap-frame');
+const raceChassisAsset = document.querySelector('.race-chassis-asset');
 const voiceIndicator = document.getElementById('voice');
 const speedUnitLabel = document.getElementById('speed-unit');
 const settingsPanel = document.getElementById('hud-settings');
@@ -19,11 +20,13 @@ const settingsLocation = document.getElementById('settings-location');
 const settingsPreview = document.getElementById('settings-preview');
 const settingsModeButtons = [...document.querySelectorAll('[data-settings-mode]')];
 const settingsVehicleModeButtons = [...document.querySelectorAll('[data-settings-vehicle-mode]')];
+const settingsRaceSizeButtons = [...document.querySelectorAll('[data-settings-race-size]')];
 const settingsPositionButtons = [...document.querySelectorAll('[data-settings-position]')];
 const settingsPaletteButtons = [...document.querySelectorAll('[data-settings-palette]')];
 const settingsOpacity = document.getElementById('settings-opacity');
 const settingsOpacityValue = document.getElementById('settings-opacity-value');
 const settingsCloseButtons = [...document.querySelectorAll('[data-settings-close]')];
+let settingsPreviouslyFocused = null;
 // Keep a changing status mounted until its value has genuinely settled.
 // This prevents repeated close/reopen motion around zero and during recovery.
 const STATUS_CHANGE_HOLD_MS = 2800;
@@ -37,6 +40,8 @@ const VEHICLE_CRASH_EFFECT_MS = 820;
 const SETTINGS_REQUEST_TIMEOUT_MS = 5000;
 const HUD_POSITION_CLASSES = ['hud-position-top-right', 'hud-position-top-left', 'hud-position-bottom-right'];
 const HUD_PALETTES = ['ocean', 'emerald', 'amethyst', 'amber', 'graphite', 'ruby', 'sakura', 'frost', 'royal', 'lime', 'copper', 'coral', 'petrol', 'orchid', 'sage'];
+const RACE_HUD_SIZES = ['small', 'medium', 'large'];
+const RACE_HUD_SIZE_CLASSES = RACE_HUD_SIZES.map((size) => `race-hud-size-${size}`);
 let vehicleMode = false;
 let vehicleRevealReady = false;
 let vehicleRevealDelayTimer = null;
@@ -54,6 +59,7 @@ let voiceLayoutTransition = null;
 let activeHudPosition = '';
 let activeHudPalette = '';
 let activeRaceMode = null;
+let activeMinimapMode = 'vehicle';
 let raceModeSwitchTimer = null;
 let vehicleCrashEffectTimer = null;
 let settingsRequestPending = false;
@@ -69,6 +75,7 @@ let hudSettingsState = {
   minimal: false,
   ultraMinimal: false,
   raceMode: false,
+  raceHudSize: 'medium',
   position: 'top-right',
   palette: 'ocean',
   opacity: 100,
@@ -99,6 +106,8 @@ let hudConfig = {
   minimalMode: false,
   ultraMinimalMode: false,
   raceMode: false,
+  raceHudSize: 'medium',
+  minimapMode: 'vehicle',
   locationVisible: true,
   hudPosition: 'top-right',
   speedUnit: 'kmh',
@@ -191,6 +200,67 @@ function setComponentVisible(element, visible) {
   element.classList.toggle('is-component-disabled', visible === false);
 }
 
+function normalizeMinimapMode(value) {
+  return ['vehicle', 'always', 'never'].includes(value) ? value : 'vehicle';
+}
+
+function normalizeRaceHudSize(value) {
+  return RACE_HUD_SIZES.includes(value) ? value : 'medium';
+}
+
+function setRaceHudSize(value) {
+  const size = normalizeRaceHudSize(value);
+  RACE_HUD_SIZE_CLASSES.forEach((className) => app.classList.remove(className));
+  app.classList.add(`race-hud-size-${size}`);
+  hudConfig.raceHudSize = size;
+  scheduleTopStatusAnchor();
+}
+
+function ensureRaceChassisAssetLoaded() {
+  if (!raceChassisAsset || raceChassisAsset.getAttribute('src')) return;
+  const source = raceChassisAsset.dataset.src;
+  if (source) raceChassisAsset.setAttribute('src', source);
+}
+
+function renderMinimapFrameVisibility() {
+  if (!minimapFrame) return false;
+
+  const before = [
+    minimapFrame.classList.contains('is-component-disabled'),
+    minimapFrame.style.visibility,
+    minimapFrame.style.opacity
+  ].join('|');
+  const componentEnabled = hudConfig.components?.minimap !== false;
+  const modeAllowsFrame = activeMinimapMode === 'always'
+    || (activeMinimapMode === 'vehicle' && vehicleMode);
+  const visible = componentEnabled && modeAllowsFrame;
+  const forceAlwaysVisible = visible && activeMinimapMode === 'always';
+
+  setComponentVisible(minimapFrame, visible);
+  if (forceAlwaysVisible) {
+    minimapFrame.style.setProperty('visibility', 'visible');
+    minimapFrame.style.setProperty('opacity', 'var(--hud-opacity)');
+  } else {
+    minimapFrame.style.removeProperty('visibility');
+    minimapFrame.style.removeProperty('opacity');
+  }
+
+  const after = [
+    minimapFrame.classList.contains('is-component-disabled'),
+    minimapFrame.style.visibility,
+    minimapFrame.style.opacity
+  ].join('|');
+  const changed = before !== after;
+  if (changed) scheduleTopStatusAnchor();
+  return changed;
+}
+
+function setMinimapMode(value) {
+  activeMinimapMode = normalizeMinimapMode(value);
+  hudConfig.minimapMode = activeMinimapMode;
+  return renderMinimapFrameVisibility();
+}
+
 function setCachedStyle(element, cache, property, value) {
   if (!element || cache.get(property) === value) return;
   cache.set(property, value);
@@ -204,8 +274,14 @@ function applyConfig(config = {}) {
     ...config,
     components: { ...hudConfig.components, ...(config.components || {}) }
   };
+  const configuredMinimapMode = config.minimapMode ?? config.minimap?.mode;
+  if (configuredMinimapMode !== undefined) {
+    activeMinimapMode = normalizeMinimapMode(configuredMinimapMode);
+    hudConfig.minimapMode = activeMinimapMode;
+  }
 
   if (Object.hasOwn(config, 'minimalMode') || Object.hasOwn(config, 'ultraMinimalMode')) applyFootDisplayMode();
+  if (Object.hasOwn(config, 'raceHudSize')) setRaceHudSize(config.raceHudSize);
   if (Object.hasOwn(config, 'raceMode')) setVehicleRaceMode(Boolean(config.raceMode));
   if (Object.hasOwn(config, 'hudPosition')) setHudPosition(config.hudPosition);
   if (Object.hasOwn(config, 'palette')) setHudPalette(config.palette);
@@ -234,7 +310,7 @@ function applyConfig(config = {}) {
   setComponentVisible(vehiclePanel, components.vehicle);
   setComponentVisible(vehicleDetailPanel, components.vehicle && hudConfig.vehicleDetails?.enabled !== false);
   setComponentVisible(voiceIndicator, components.voice);
-  setComponentVisible(minimapFrame, components.minimap);
+  renderMinimapFrameVisibility();
 }
 
 const fields = {
@@ -260,11 +336,8 @@ const vehicleUi = {
   gearShell: document.querySelector('.gear-shell'),
   fuelBar: document.getElementById('fuel-bar'),
   engineBar: document.getElementById('engine-bar'),
-  fuelArc: document.getElementById('fuel-arc-value'),
-  engineArc: document.getElementById('engine-arc-value'),
   nitroGauge: document.getElementById('nitro-gauge'),
   nitroRing: document.getElementById('nitro-ring-value'),
-  raceNitroValue: document.getElementById('race-nitro-value'),
   raceSeatbelt: document.getElementById('race-seatbelt-light'),
   detailNitro: document.getElementById('vehicle-detail-nitro'),
   detailNitroValue: document.getElementById('vehicle-detail-nitro-value')
@@ -601,6 +674,7 @@ function renderHudSettings(state = {}) {
     minimal: Boolean(state.minimal),
     ultraMinimal: Boolean(state.ultraMinimal),
     raceMode: Boolean(state.raceMode),
+    raceHudSize: normalizeRaceHudSize(state.raceHudSize),
     position: ['top-left', 'bottom-right'].includes(state.position) ? state.position : 'top-right',
     palette: HUD_PALETTES.includes(state.palette) ? state.palette : 'ocean',
     opacity: normalizeHudOpacity(state.opacity)
@@ -627,6 +701,12 @@ function renderHudSettings(state = {}) {
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
 
+  settingsRaceSizeButtons.forEach((button) => {
+    const active = button.dataset.settingsRaceSize === hudSettingsState.raceHudSize;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+
   settingsPositionButtons.forEach((button) => {
     const active = button.dataset.settingsPosition === hudSettingsState.position;
     button.classList.toggle('is-active', active);
@@ -644,13 +724,41 @@ function renderHudSettings(state = {}) {
 
   setHudPalette(hudSettingsState.palette);
   setHudOpacity(hudSettingsState.opacity);
+  setRaceHudSize(hudSettingsState.raceHudSize);
   setVehicleRaceMode(hudSettingsState.raceMode);
+}
+
+function focusSettingsFirstControl(attempt = 0) {
+  if (settingsPanel.classList.contains('is-hidden')) return;
+  const firstControl = settingsPanel.querySelector('.settings-dialog button:not([disabled]), .settings-dialog input:not([disabled])');
+  if (!firstControl) return;
+
+  const style = window.getComputedStyle(firstControl);
+  if (style.visibility === 'visible' && style.display !== 'none') firstControl.focus();
+  if (document.activeElement !== firstControl && attempt < 30) {
+    window.requestAnimationFrame(() => focusSettingsFirstControl(attempt + 1));
+  }
 }
 
 function setSettingsVisible(open, state) {
   if (state) renderHudSettings(state);
+  const wasOpen = !settingsPanel.classList.contains('is-hidden');
+  if (open && !wasOpen) {
+    settingsPreviouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+  }
+
   settingsPanel.classList.toggle('is-hidden', !open);
   settingsPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+
+  if (open && !wasOpen) {
+    window.requestAnimationFrame(() => focusSettingsFirstControl());
+  } else if (!open && wasOpen) {
+    const previous = settingsPreviouslyFocused;
+    settingsPreviouslyFocused = null;
+    if (previous?.isConnected && previous !== document.body) previous.focus();
+  }
 }
 
 function setSettingsBusy(busy) {
@@ -704,7 +812,7 @@ async function processSettingsActions() {
 }
 
 function sendSettingsAction(action, value) {
-  const coalescedActions = new Set(['setMode', 'setVehicleMode', 'setPosition', 'setPalette', 'setOpacity']);
+  const coalescedActions = new Set(['setMode', 'setVehicleMode', 'setRaceHudSize', 'setPosition', 'setPalette', 'setOpacity']);
   if (coalescedActions.has(action)) {
     for (let index = settingsActionQueue.length - 1; index >= 0; index -= 1) {
       if (settingsActionQueue[index].action === action) settingsActionQueue.splice(index, 1);
@@ -731,6 +839,7 @@ function applyFootDisplayMode() {
 
 function setVehicleRaceMode(enabled) {
   const nextRaceMode = Boolean(enabled);
+  if (nextRaceMode) ensureRaceChassisAssetLoaded();
   if (activeRaceMode === nextRaceMode) return;
 
   const firstApply = activeRaceMode === null;
@@ -1008,19 +1117,12 @@ function setVehicleRpm(value) {
 function setVehicleMeter(bar, value) {
   const warningThreshold = Number(hudConfig.vehicleWarnings?.warningThreshold) || 60;
   const dangerThreshold = Number(hudConfig.vehicleWarnings?.dangerThreshold) || 35;
-  const arc = bar === vehicleUi.fuelBar ? vehicleUi.fuelArc : vehicleUi.engineArc;
   const segments = bar === vehicleUi.fuelBar ? vehicleUi.fuelSegments : vehicleUi.engineSegments;
   const warning = value <= warningThreshold && value > dangerThreshold;
   const danger = value <= dangerThreshold;
   bar.style.width = `${value}%`;
   bar.classList.toggle('is-warning', warning);
   bar.classList.toggle('is-danger', danger);
-
-  if (arc) {
-    arc.style.strokeDashoffset = String(value - 100);
-    arc.classList.toggle('is-warning', warning);
-    arc.classList.toggle('is-danger', danger);
-  }
 
   if (segments?.length) {
     const scaledValue = (clamp(value) / 100) * segments.length;
@@ -1045,7 +1147,6 @@ function setVehicleMeter(bar, value) {
 function setVehicleNitro(value, animate = true) {
   const nitro = Math.round(clamp(value));
   vehicleUi.nitroRing.style.strokeDashoffset = String(100 - nitro);
-  if (vehicleUi.raceNitroValue) vehicleUi.raceNitroValue.textContent = String(nitro);
   vehicleUi.nitroGauge.setAttribute('aria-label', translate('nitro_percent', nitro));
   vehicleUi.nitroGauge.classList.toggle('is-low', nitro > 10 && nitro <= 35);
   vehicleUi.nitroGauge.classList.toggle('is-critical', nitro <= 10);
@@ -1077,7 +1178,6 @@ function resetVehicleIndicators() {
   vehicleDetailPanel.classList.remove('has-nitro');
   vehicleUi.detailNitroValue.textContent = '0';
   vehicleUi.nitroRing.style.strokeDashoffset = '100';
-  if (vehicleUi.raceNitroValue) vehicleUi.raceNitroValue.textContent = '0';
 
   resetVehicleSafetySlot();
   renderSafetySlot();
@@ -1195,16 +1295,21 @@ function selectSafetySlot(owner, holdMs = 0) {
   }
 }
 
+function clearEmptyNitroAttempt() {
+  window.clearTimeout(nitroEmptyAttemptTimer);
+  nitroEmptyAttemptTimer = null;
+  nitroEmptyAttemptAnimation?.cancel();
+  nitroEmptyAttemptAnimation = null;
+  vehicleUi.nitroGauge.classList.remove('is-empty-attempt');
+}
+
 function resetVehicleSafetySlot() {
   window.clearTimeout(safetySlotTimer);
   window.clearTimeout(nitroChangeTimer);
-  window.clearTimeout(nitroEmptyAttemptTimer);
   safetySlotTimer = null;
   nitroChangeTimer = null;
-  nitroEmptyAttemptTimer = null;
   clearSafetySlotTransition();
-  nitroEmptyAttemptAnimation?.cancel();
-  nitroEmptyAttemptAnimation = null;
+  clearEmptyNitroAttempt();
   safetySlotOwner = null;
   lastNitroValue = null;
   lastSeatbeltState = null;
@@ -1232,10 +1337,8 @@ function resetVehicleSafetySlot() {
 function animateEmptyNitroAttempt() {
   if (!vehicleMode || !vehicleSafetyState.hasNitro || vehicleSafetyState.nitro > 0) return;
 
-  nitroEmptyAttemptAnimation?.cancel();
-  window.clearTimeout(nitroEmptyAttemptTimer);
+  clearEmptyNitroAttempt();
   selectSafetySlot('nitro', EMPTY_NITRO_SLOT_HOLD_MS);
-  vehicleUi.nitroGauge.classList.remove('is-empty-attempt');
   void vehicleUi.nitroGauge.offsetWidth;
   vehicleUi.nitroGauge.classList.add('is-empty-attempt');
 
@@ -1272,6 +1375,8 @@ function setVehicleSafety(nitroValue, seatbelt, seatbeltAvailable = true, nitroA
   };
   app.classList.toggle('is-nitro-active', hasNitro && nitro > 0 && nitroActive === true);
   renderRaceSeatbelt();
+
+  if (!hasNitro || nitro > 0) clearEmptyNitroAttempt();
 
   if (hasNitro) {
     setVehicleNitro(nitro);
@@ -1408,6 +1513,46 @@ function playVehicleCrashEffect() {
   }, VEHICLE_CRASH_EFFECT_MS);
 }
 
+function clearVehicleHandoffState() {
+  window.clearTimeout(identityHandoffTimer);
+  window.clearTimeout(summaryHandoffTimer);
+  identityHandoffTimer = null;
+  summaryHandoffTimer = null;
+  app.classList.remove('is-vehicle-handoff', 'is-summary-handoff');
+}
+
+function renderVehicleSnapshot(vehicle) {
+  if (!vehicle || typeof vehicle !== 'object') return;
+
+  const fuel = Math.round(clamp(vehicle.fuel));
+  const engine = Math.round(clamp(vehicle.engine));
+  const hasNitro = vehicle.nitro !== false && vehicle.nitro !== null && vehicle.nitro !== undefined;
+
+  fields.speed.textContent = String(Math.max(0, Math.round(vehicle.speed || 0))).padStart(3, '0');
+  setVehicleGear(vehicle.gear || 'N');
+  setVehicleRpm(vehicle.rpm);
+  fields.fuel.textContent = fuel;
+  fields.engine.textContent = engine;
+  vehicleUi.detailNitro.classList.toggle('is-hidden', !hasNitro);
+  vehicleDetailPanel.classList.toggle('has-nitro', hasNitro);
+  vehicleUi.detailNitroValue.textContent = String(hasNitro ? Math.round(clamp(vehicle.nitro)) : 0);
+  setVehicleMeter(vehicleUi.fuelBar, fuel);
+  setVehicleMeter(vehicleUi.engineBar, engine);
+  setVehicleSafety(vehicle.nitro, vehicle.seatbelt, vehicle.seatbeltAvailable, vehicle.nitroActive);
+}
+
+function getVehicleLayoutSignature() {
+  return [
+    vehicleMode,
+    vehicleExiting,
+    vehicleRevealReady,
+    vehiclePanel.classList.contains('is-hidden'),
+    vehicleDetailPanel.classList.contains('is-hidden'),
+    vehicleDetailPanel.classList.contains('has-nitro'),
+    minimapFrame?.classList.contains('is-component-disabled')
+  ].join('|');
+}
+
 function updateVehicle(vehicle) {
   const nextVehicleMode = Boolean(vehicle);
   const emergencyLightsActive = nextVehicleMode
@@ -1429,6 +1574,7 @@ function updateVehicle(vehicle) {
       window.clearTimeout(vehicleEntryTimer);
       vehicleRevealDelayTimer = null;
       vehicleEntryTimer = null;
+      clearVehicleHandoffState();
       app.classList.remove('is-vehicle-reveal-pending', 'is-vehicle-entering');
       app.classList.add('is-vehicle-exiting', 'is-foot-handoff');
       vehicleExitTimer = window.setTimeout(() => {
@@ -1439,6 +1585,7 @@ function updateVehicle(vehicle) {
         vehicleMode = false;
         vehicleRevealReady = false;
         app.classList.remove('is-vehicle', 'is-vehicle-exiting', 'is-foot-handoff');
+        renderMinimapFrameVisibility();
         refreshStatusThresholds();
         animateSummaryLayout(summaryStartRect);
         animateVoiceLayout(voiceStartRect);
@@ -1464,17 +1611,14 @@ function updateVehicle(vehicle) {
     window.clearTimeout(vehicleEntryTimer);
     window.clearTimeout(vehicleRevealDelayTimer);
     window.clearTimeout(vehicleExitTimer);
-    window.clearTimeout(identityHandoffTimer);
-    window.clearTimeout(summaryHandoffTimer);
+    clearVehicleHandoffState();
     vehicleExitTimer = null;
     vehicleExiting = false;
-    identityHandoffTimer = null;
-    summaryHandoffTimer = null;
     showAllExitTimer = null;
     showAllStatuses = false;
     modeSwitching = true;
     app.classList.remove('show-status-values', 'is-status-exiting');
-    app.classList.remove('is-foot-handoff', 'is-vehicle-handoff', 'is-summary-handoff');
+    app.classList.remove('is-foot-handoff');
     app.classList.add('is-mode-switching');
     modeSwitchTimer = window.setTimeout(() => {
       modeSwitching = false;
@@ -1487,6 +1631,7 @@ function updateVehicle(vehicle) {
   const voiceStartRect = modeChanged ? voiceIndicator?.getBoundingClientRect() : null;
   vehicleMode = nextVehicleMode;
   app.classList.toggle('is-vehicle', nextVehicleMode);
+  renderMinimapFrameVisibility();
   if (modeChanged && nextVehicleMode) refreshStatusThresholds();
   if (modeChanged && nextVehicleMode) {
     animateSummaryLayout(summaryStartRect);
@@ -1510,12 +1655,17 @@ function updateVehicle(vehicle) {
         }, 820);
       }, 680);
       vehicleRevealDelayTimer = window.setTimeout(() => {
-        vehicleRevealReady = true;
         vehicleRevealDelayTimer = null;
+        const latestVehicle = hudState.vehicle;
+        if (!vehicleMode || vehicleExiting || !latestVehicle) return;
+
+        vehicleRevealReady = true;
+        renderVehicleSnapshot(latestVehicle);
         app.classList.add('is-vehicle-entering');
         vehiclePanel.classList.remove('is-hidden');
         vehicleDetailPanel.classList.remove('is-hidden');
         app.classList.remove('is-vehicle-reveal-pending');
+        scheduleTopStatusAnchor();
         vehicleEntryTimer = window.setTimeout(() => {
           app.classList.remove('is-vehicle-entering');
           vehicleEntryTimer = null;
@@ -1537,22 +1687,7 @@ function updateVehicle(vehicle) {
 
   vehiclePanel.classList.remove('is-hidden');
   vehicleDetailPanel.classList.remove('is-hidden');
-
-  const fuel = Math.round(clamp(vehicle.fuel));
-  const engine = Math.round(clamp(vehicle.engine));
-  const hasNitro = vehicle.nitro !== false && vehicle.nitro !== null && vehicle.nitro !== undefined;
-
-  fields.speed.textContent = String(Math.max(0, Math.round(vehicle.speed || 0))).padStart(3, '0');
-  setVehicleGear(vehicle.gear || 'N');
-  setVehicleRpm(vehicle.rpm);
-  fields.fuel.textContent = fuel;
-  fields.engine.textContent = engine;
-  vehicleUi.detailNitro.classList.toggle('is-hidden', !hasNitro);
-  vehicleDetailPanel.classList.toggle('has-nitro', hasNitro);
-  vehicleUi.detailNitroValue.textContent = String(hasNitro ? Math.round(clamp(vehicle.nitro)) : 0);
-  setVehicleMeter(vehicleUi.fuelBar, fuel);
-  setVehicleMeter(vehicleUi.engineBar, engine);
-  setVehicleSafety(vehicle.nitro, vehicle.seatbelt, vehicle.seatbeltAvailable, vehicle.nitroActive);
+  renderVehicleSnapshot(vehicle);
   return modeChanged;
 }
 
@@ -1562,9 +1697,14 @@ function update(patch) {
 
   if (Object.hasOwn(patch, 'visible')) setVisible(patch.visible !== false);
   if (Object.hasOwn(patch, 'hudPosition')) setHudPosition(patch.hudPosition);
+  if (Object.hasOwn(patch, 'minimapMode')) setMinimapMode(patch.minimapMode);
 
   let modeChanged = false;
-  if (Object.hasOwn(patch, 'vehicle')) modeChanged = updateVehicle(hudState.vehicle);
+  const hasVehiclePatch = Object.hasOwn(patch, 'vehicle');
+  const vehicleLayoutBefore = hasVehiclePatch ? getVehicleLayoutSignature() : '';
+  if (hasVehiclePatch) modeChanged = updateVehicle(hudState.vehicle);
+  const vehicleLayoutChanged = hasVehiclePatch
+    && vehicleLayoutBefore !== getVehicleLayoutSignature();
   if (Object.hasOwn(patch, 'minimalMode') || Object.hasOwn(patch, 'ultraMinimalMode')) {
     hudConfig.minimalMode = Boolean(patch.minimalMode ?? hudConfig.minimalMode);
     hudConfig.ultraMinimalMode = Boolean(patch.ultraMinimalMode ?? hudConfig.ultraMinimalMode);
@@ -1603,7 +1743,7 @@ function update(patch) {
   }
 
   const layoutRelevant = hasStatusPatch
-    || Object.hasOwn(patch, 'vehicle')
+    || vehicleLayoutChanged
     || Object.hasOwn(patch, 'minimalMode')
     || Object.hasOwn(patch, 'ultraMinimalMode')
     || Object.hasOwn(patch, 'showAllStatuses')
@@ -1623,6 +1763,10 @@ settingsModeButtons.forEach((button) => {
 
 settingsVehicleModeButtons.forEach((button) => {
   button.addEventListener('click', () => sendSettingsAction('setVehicleMode', button.dataset.settingsVehicleMode));
+});
+
+settingsRaceSizeButtons.forEach((button) => {
+  button.addEventListener('click', () => sendSettingsAction('setRaceHudSize', button.dataset.settingsRaceSize));
 });
 
 settingsPositionButtons.forEach((button) => {
@@ -1650,9 +1794,38 @@ settingsCloseButtons.forEach((button) => {
 });
 
 window.addEventListener('keydown', (event) => {
-  if (event.key !== 'Escape' || settingsPanel.classList.contains('is-hidden')) return;
-  event.preventDefault();
-  sendSettingsAction('close');
+  if (settingsPanel.classList.contains('is-hidden')) return;
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    sendSettingsAction('close');
+    return;
+  }
+
+  if (event.key !== 'Tab') return;
+  const controls = [...settingsPanel.querySelectorAll(
+    '.settings-dialog button:not([disabled]), .settings-dialog input:not([disabled]), '
+      + '.settings-dialog select:not([disabled]), .settings-dialog textarea:not([disabled]), '
+      + '.settings-dialog [tabindex]:not([tabindex="-1"])'
+  )].filter((element) => element.getClientRects().length > 0);
+  if (!controls.length) {
+    event.preventDefault();
+    return;
+  }
+
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  const focusIsInside = settingsPanel.contains(document.activeElement);
+  if (!focusIsInside) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 });
 
 const notificationGlyphs = {
@@ -1885,6 +2058,7 @@ function resetRuntimeState() {
     'is-race-mode',
     'is-emergency-lights'
   );
+  renderMinimapFrameVisibility();
   vehiclePanel.classList.add('is-hidden');
   vehiclePanel.classList.remove('is-race-switching-out', 'is-race-switching-in');
   vehicleDetailPanel.classList.add('is-hidden');

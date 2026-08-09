@@ -1,6 +1,6 @@
 # Mirac Wicked HUD Kurulum
 
-Bu belge Mirac Wicked HUD `2.0.0-beta.1` içindir.
+Bu belge Mirac Wicked HUD `2.0.0-beta.2` içindir.
 
 ## 1. Gereksinimler
 
@@ -136,9 +136,12 @@ değerine yazmaz.
 ```lua
 Config.Minimap.mode = 'vehicle' -- vehicle | always | never
 Config.Minimap.hideNativeVitals = true
+Config.Minimap.zoom = 1125
+Config.Minimap.restoreZoom = 1100
 ```
 
-Resource durduğunda native radar ve health/armour HUD durumu geri yüklenir.
+Resource durduğunda native radar, health/armour HUD durumu ve `restoreZoom`
+değeri geri yüklenir.
 
 ## 9. Nitro
 
