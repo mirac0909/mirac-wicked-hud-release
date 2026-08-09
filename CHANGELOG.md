@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.0.0-beta.2 — 2026-08-09
+
+- Reworked the reference-driven race cockpit, meter geometry, endpoint labels,
+  seatbelt and nitro states.
+- Made the race chassis and its dynamic overlays share one fixed aspect ratio
+  across resolutions and corrected the scaled vehicle-detail placement.
+- Fixed vehicle initialization ordering, hidden-HUD telemetry continuity,
+  minimap lifecycle cleanup and vehicle-change indicator resets.
+- Fixed stamina semantics, fast vehicle handoff timers, gear scaling and stale
+  empty-nitro animation state.
+- Removed obsolete race HUD layers and inactive DOM updates, reduced repeated
+  layout/native work, and added compatibility fallbacks for older FiveM CEF.
+- Added deterministic keyboard focus handling for the settings dialog and
+  made reduced-motion preferences cover the remaining race effects.
+- Added persistent Small, Medium and Large racing-cockpit size choices without
+  changing the cockpit aspect ratio or dynamic overlay alignment.
+- Synchronized package metadata and removed unused production assets.
+
 ## 2.0.0-beta.1 — 2026-08-09
 
 - Introduced the redesigned full-width race cockpit with a dedicated chassis,

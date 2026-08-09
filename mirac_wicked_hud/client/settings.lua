@@ -1,6 +1,8 @@
 Hud.state = Hud.state or { loaded = false, citizenid = nil }
 Hud.settings = Hud.settings or {}
 
+if Hud.configValid ~= true then return end
+
 local resource = Hud.resource
 local kvpPrefix = ('%s:'):format(resource)
 local positionAliases = {
@@ -14,6 +16,7 @@ local positionAliases = {
 }
 local positionOrder = { 'top-right', 'top-left', 'bottom-right' }
 local lastSafeZoneInset = nil
+local lastPanelsVisible = nil
 
 local function readBoolean(name, fallback)
     local value = GetResourceKvpString(kvpPrefix .. name)
@@ -26,6 +29,13 @@ end
 local function readPosition()
     local value = GetResourceKvpString(kvpPrefix .. 'position')
     return Hud.isPosition(value) and value or Config.DefaultSettings.position
+end
+
+local function readRaceHudSize()
+    local value = GetResourceKvpString(kvpPrefix .. 'raceHudSize')
+    return type(value) == 'string' and Hud.raceHudSizes[value]
+        and value
+        or Config.DefaultSettings.raceHudSize
 end
 
 local function readPalette()
@@ -49,6 +59,7 @@ Hud.settings.minimal = readBoolean('minimalMode', Config.DefaultSettings.minimal
 Hud.settings.ultraMinimal = readBoolean('ultraMinimalMode', false)
 if Hud.settings.ultraMinimal then Hud.settings.minimal = false end
 Hud.settings.raceMode = readBoolean('raceMode', Config.DefaultSettings.raceMode)
+Hud.settings.raceHudSize = readRaceHudSize()
 Hud.settings.position = readPosition()
 Hud.settings.palette = readPalette()
 Hud.settings.opacity = readOpacity()
@@ -61,6 +72,7 @@ function Hud.getSettingsState()
         minimal = Hud.settings.minimal,
         ultraMinimal = Hud.settings.ultraMinimal,
         raceMode = Hud.settings.raceMode,
+        raceHudSize = Hud.settings.raceHudSize,
         position = Hud.settings.position,
         palette = Hud.settings.palette,
         opacity = Hud.settings.opacity
@@ -109,9 +121,11 @@ function Hud.sendConfig()
         minimalMode = Hud.settings.minimal,
         ultraMinimalMode = Hud.settings.ultraMinimal,
         raceMode = Hud.settings.raceMode,
+        raceHudSize = Hud.settings.raceHudSize,
         locationVisible = Hud.settings.location,
         hudPosition = Hud.settings.position,
         speedUnit = Config.SpeedUnit,
+        minimapMode = Config.Minimap.mode,
         palette = Hud.settings.palette,
         opacity = Hud.settings.opacity,
         identity = {
@@ -142,10 +156,19 @@ function Hud.shouldShow()
     return not IsPauseMenuActive()
 end
 
-function Hud.sendVisibility(force, panelsVisible)
+function Hud.sendVisibility(force, panelsVisible, skipVehicleSync)
     local pauseAllowsHud = Config.Client.showOnPause or not IsPauseMenuActive()
     local loaded = Hud.state.loaded and pauseAllowsHud
     if type(panelsVisible) ~= 'boolean' then panelsVisible = Hud.shouldShow() end
+
+    if panelsVisible
+        and skipVehicleSync ~= true
+        and (force == true or lastPanelsVisible ~= true)
+        and Hud.vehicle
+        and Hud.vehicle.syncCurrentSnapshot
+    then
+        Hud.vehicle.syncCurrentSnapshot(false)
+    end
 
     Hud.sendNui(Hud.actions.visibility, {
         panelsVisible = panelsVisible,
@@ -156,6 +179,7 @@ function Hud.sendVisibility(force, panelsVisible)
             and Config.TextUI.enabled
             and (Hud.settings.enabled or Config.TextUI.showWhenHudHidden)
     }, force == true)
+    lastPanelsVisible = panelsVisible
 end
 
 local notificationTypes = {
@@ -357,6 +381,16 @@ function Hud.setRaceMode(enabled, showNotification)
     return true
 end
 
+function Hud.setRaceHudSize(size)
+    if type(size) ~= 'string' or not Hud.raceHudSizes[size] then return false end
+
+    Hud.settings.raceHudSize = size
+    SetResourceKvp(kvpPrefix .. 'raceHudSize', size)
+    Hud.sendConfig()
+    Hud.syncSettingsNui()
+    return true
+end
+
 function Hud.setLocationVisible(enabled)
     Hud.settings.location = enabled == true
     SetResourceKvp(kvpPrefix .. 'location', Hud.settings.location and 'true' or 'false')
@@ -426,6 +460,7 @@ function Hud.resetSettings(showNotification)
     DeleteResourceKvp(kvpPrefix .. 'minimalMode')
     DeleteResourceKvp(kvpPrefix .. 'ultraMinimalMode')
     DeleteResourceKvp(kvpPrefix .. 'raceMode')
+    DeleteResourceKvp(kvpPrefix .. 'raceHudSize')
     DeleteResourceKvp(kvpPrefix .. 'position')
     DeleteResourceKvp(kvpPrefix .. 'palette')
     DeleteResourceKvp(kvpPrefix .. 'opacity')
@@ -435,6 +470,7 @@ function Hud.resetSettings(showNotification)
     Hud.settings.minimal = Config.DefaultSettings.minimal
     Hud.settings.ultraMinimal = false
     Hud.settings.raceMode = Config.DefaultSettings.raceMode
+    Hud.settings.raceHudSize = Config.DefaultSettings.raceHudSize
     Hud.settings.position = Config.DefaultSettings.position
     Hud.settings.palette = Config.DefaultSettings.palette
     Hud.settings.opacity = Config.DefaultSettings.opacity
@@ -508,6 +544,8 @@ RegisterNUICallback('hudSettingsAction', function(data, callback)
         else
             Hud.setRaceMode(data.value == 'race', false)
         end
+    elseif action == 'setRaceHudSize' then
+        ok = Hud.setRaceHudSize(data.value)
     elseif action == 'setPosition' then
         ok = Hud.setPosition(data.value, false)
     elseif action == 'setPalette' then
@@ -582,6 +620,8 @@ lib.addKeybind({
 })
 
 CreateThread(function()
+    if not Hud.awaitConfigValidation() then return end
+
     while true do
         Wait(2000)
         if Config.SafeZone.enabled and Hud.state.loaded then

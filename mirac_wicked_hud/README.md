@@ -5,7 +5,7 @@ Open-source FiveM HUD for **Qbox** using **ox_lib**. The resource keeps framewor
 ## Release
 
 - Resource folder: `mirac_wicked_hud`
-- Version: `2.0.0-beta.1`
+- Version: `2.0.0-beta.2`
 - License: MIT
 - Tested development stack from the supplied server snapshot: qbx_core 1.23.0 and ox_lib 3.39.0
 
@@ -14,9 +14,10 @@ Open-source FiveM HUD for **Qbox** using **ox_lib**. The resource keeps framewor
 - Qbox PlayerData integration without `GetCoreObject()`
 - ox_lib callbacks, keybinds, locale, cache and notifications
 - Server-authoritative initial metadata snapshot
-- Health, armour, stamina, hunger and thirst HUD
-- Minimal and ultra-minimal modes with configurable critical-status reveal behavior
-- Vehicle speed, gear, fuel, engine and optional nitro display
+- Health, armour, stamina, oxygen, hunger and thirst HUD
+- Normal, minimal and ultra-minimal layouts with configurable critical-status reveal behavior
+- Normal vehicle HUD and a redesigned racing cockpit with persistent Small, Medium and Large sizes
+- Vehicle speed, gear, fuel, engine and optional nitro display with clean vehicle-change initialization
 - Nitro-aware seatbelt indicator with a configurable built-in toggle
 - Two-stage fuel and engine warning colors with threshold-entry sounds
 - Vehicle-only / always / never minimap modes
@@ -66,7 +67,10 @@ See [INSTALL.md](INSTALL.md) for the full setup guide and [README_TR.md](README_
 | `/hudreset` | Reset this player's local visual HUD settings |
 | `/hudyenile` / `/hudrefresh` | Rebuild the local HUD presentation without changing saved settings |
 
-`/hudreset` restores visibility, normal/minimal mode, vehicle HUD appearance, position, palette and
+The settings menu also provides Small, Medium and Large sizes for the racing cockpit. The choice is
+stored locally per player.
+
+`/hudreset` restores visibility, normal/minimal mode, vehicle HUD appearance and size, position, palette and
 opacity to `Config.DefaultSettings`. It does not change health, armour,
 stamina, hunger, thirst, citizen ID or any other framework/gameplay value.
 
@@ -334,7 +338,8 @@ customSounds = {
 
 The same structure uses `buckle` and `unbuckle` keys under
 `Config.Seatbelt.customSounds`. Restart the HUD after adding or changing audio
-files.
+files. If a configured custom seatbelt or warning file is missing, the HUD
+falls back to its configured native frontend sound instead of failing silently.
 
 Config and bridge registrations are read when the HUD starts. Restart
 `mirac_wicked_hud` after changing them. A bridge event does not disable an

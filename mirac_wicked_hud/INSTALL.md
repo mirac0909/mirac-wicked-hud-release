@@ -1,6 +1,6 @@
 # Mirac Wicked HUD Installation
 
-This document applies to Mirac Wicked HUD `2.0.0-beta.1`.
+This document applies to Mirac Wicked HUD `2.0.0-beta.2`.
 
 ## 1. Requirements
 
@@ -126,9 +126,12 @@ other gameplay/framework value.
 ```lua
 Config.Minimap.mode = 'vehicle' -- vehicle | always | never
 Config.Minimap.hideNativeVitals = true
+Config.Minimap.zoom = 1125
+Config.Minimap.restoreZoom = 1100
 ```
 
-The resource restores native HUD/radar state on resource stop.
+The resource restores the native HUD/radar state and `restoreZoom` value on
+resource stop.
 
 ## 9. Nitro
 

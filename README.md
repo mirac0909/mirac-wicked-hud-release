@@ -10,7 +10,7 @@
 [![FiveM](https://img.shields.io/badge/FiveM-Cerulean-f40552)](https://fivem.net/)
 [![Framework](https://img.shields.io/badge/Framework-Qbox-4f46e5)](https://github.com/Qbox-project/qbx_core)
 [![Dependency](https://img.shields.io/badge/Dependency-ox__lib-22c55e)](https://github.com/overextended/ox_lib)
-[![Version](https://img.shields.io/badge/version-2.0.0--beta.1-f59e0b)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0--beta.2-f59e0b)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-0f172a)](LICENSE)
 
 A modern, configurable and open-source FiveM HUD built for Qbox and a
@@ -47,8 +47,10 @@ bridges so server owners can configure integrations without editing the NUI.
 
 - Health, armour, stamina, oxygen, hunger and thirst indicators
 - Normal, minimal and ultra-minimal layouts with critical-status reveal behavior
-- Vehicle speed, RPM-aware gear ring, fuel, engine, nitro and seatbelt HUD
-- Synchronized minimap and vehicle-panel transitions
+- Normal vehicle HUD plus a redesigned full-width racing cockpit
+- Persistent Small, Medium and Large racing-cockpit sizes
+- Vehicle speed, RPM-aware gear display, fuel, engine, nitro and seatbelt HUD
+- Clean vehicle-change initialization and synchronized minimap/panel transitions
 - Native, state-bag, export and custom fuel adapters
 - Automatic pma-voice detection plus Enhanced/native voice support
 - Whisper, normal and shout indicators with optional shout auto-reset
@@ -95,9 +97,13 @@ state-bag and troubleshooting details.
 | `/hud` | Toggle HUD visibility |
 | `/hudsettings` / `/hudayar` | Open HUD settings |
 | `/hudminimal` | Toggle normal and minimal layouts |
+| `/hudrace` / `/hudyaris` | Toggle the normal vehicle HUD and racing cockpit |
 | `/hudposition` / `/hudkonum` | Select or cycle the HUD position |
 | `/hudreset` | Restore local visual settings |
 | `/hudrefresh` / `/hudyenile` | Rebuild the local HUD presentation |
+
+The settings menu also provides Small, Medium and Large racing-cockpit sizes.
+The selected size is stored locally per player.
 
 ## Integration example
 

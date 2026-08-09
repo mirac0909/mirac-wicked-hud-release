@@ -1,5 +1,30 @@
 Hud.statusRevealUntil = Hud.statusRevealUntil or 0
 
+if Hud.configValid ~= true then
+    for index = 1, #(Hud.configErrors or {}) do
+        lib.print.error(('[%s] %s: %s'):format(
+            Hud.resource,
+            locale('config_error'),
+            Hud.configErrors[index]
+        ))
+    end
+
+    AddEventHandler('onClientResourceStart', function(resourceName)
+        if resourceName ~= Hud.resource then return end
+        Hud.sendNui(Hud.actions.visibility, {
+            panelsVisible = false, notificationsVisible = false, textUiVisible = false
+        }, true)
+    end)
+
+    AddEventHandler('onClientResourceStop', function(resourceName)
+        if resourceName ~= Hud.resource then return end
+        SetNuiFocus(false, false)
+        Hud.resetNui()
+    end)
+
+    return
+end
+
 local initializing = false
 local initializationToken = 0
 
@@ -8,54 +33,6 @@ local function log(level, message)
     if level == 'error' then lib.print.error(message)
     elseif level == 'warn' then lib.print.warn(message)
     else lib.print.debug(message) end
-end
-
-local function validateConfig()
-    local valid, errors = Hud.validateSharedConfig()
-
-    local function add(path)
-        valid = false
-        errors[#errors + 1] = path
-    end
-
-    if type(Config.Client) ~= 'table' then
-        add('Config.Client')
-    else
-        local ranges = {
-            playerUpdateInterval = { 50, 5000 },
-            vehicleUpdateInterval = { 50, 5000 },
-            hiddenUpdateInterval = { 100, 10000 },
-            idleVehicleInterval = { 100, 10000 },
-            locationUpdateInterval = { 100, 10000 },
-            showAllStatusesDuration = { 500, 30000 },
-            playerDataWaitTimeout = { 1000, 60000 }
-        }
-
-        for key, range in pairs(ranges) do
-            if not Hud.isNumberInRange(Config.Client[key], range[1], range[2]) then
-                add(('Config.Client.%s'):format(key))
-            end
-        end
-
-        if type(Config.Client.nuiDebug) ~= 'boolean' then add('Config.Client.nuiDebug') end
-        if type(Config.Client.enableTestApi) ~= 'boolean' then add('Config.Client.enableTestApi') end
-        if type(Config.Client.showOnPause) ~= 'boolean' then add('Config.Client.showOnPause') end
-    end
-
-    if type(Config.Oxygen) ~= 'table' then
-        add('Config.Oxygen')
-    else
-        if type(Config.Oxygen.enabled) ~= 'boolean' then add('Config.Oxygen.enabled') end
-        if not Hud.isNumberInRange(Config.Oxygen.maxSeconds, 1, 120) then
-            add('Config.Oxygen.maxSeconds')
-        end
-    end
-
-    for index = 1, #errors do
-        lib.print.error(('[%s] %s: %s'):format(Hud.resource, locale('config_error'), errors[index]))
-    end
-
-    return valid
 end
 
 local function clearHud()
@@ -74,7 +51,10 @@ local function clearHud()
 end
 
 function Hud.initialize(reason)
-    if Hud.configValid == false or initializing or not Hud.Qbox.isLoggedIn() then return false end
+    if Hud.configValid ~= true or initializing or not Hud.Qbox.isLoggedIn() then return false end
+
+    local citizenid = Hud.Qbox.getCitizenId()
+    if citizenid and Hud.state.loaded and Hud.state.citizenid == citizenid then return true end
 
     initializing = true
     initializationToken = initializationToken + 1
@@ -103,8 +83,9 @@ function Hud.initialize(reason)
     Hud.sendLocale()
     Hud.sendConfig()
     Hud.player.setInitialData(data)
-    Hud.sendVisibility(true)
+    Hud.vehicle.syncCurrentSnapshot(true)
     Hud.vehicle.reapplyNativeHud(180)
+    Hud.sendVisibility(true, nil, true)
 
     TriggerEvent(('%s:ready'):format(Hud.resource), Hud.copy(data))
     return true
@@ -123,7 +104,7 @@ end)
 AddEventHandler('playerSpawned', function()
     CreateThread(function()
         Wait(250)
-        if Hud.configValid ~= false then Hud.vehicle.reapplyNativeHud(180) end
+        if Hud.configValid == true then Hud.vehicle.reapplyNativeHud(180) end
     end)
 end)
 
@@ -155,7 +136,7 @@ end)
 
 AddEventHandler('onClientResourceStart', function(resourceName)
     if resourceName ~= Hud.resource then return end
-    if Hud.configValid == false then
+    if Hud.configValid ~= true then
         Hud.sendNui(Hud.actions.visibility, {
             panelsVisible = false, notificationsVisible = false, textUiVisible = false
         }, true)
@@ -192,11 +173,11 @@ AddEventHandler('onClientResourceStop', function(resourceName)
     if resourceName ~= Hud.resource then return end
 
     SetNuiFocus(false, false)
+    Hud.vehicle.restoreNativeHud()
     Hud.sendNui(Hud.actions.visibility, {
         panelsVisible = false, notificationsVisible = false, textUiVisible = false
     }, true)
     Hud.resetNui()
-    Hud.vehicle.restoreNativeHud()
 end)
 
 exports('getState', function()
@@ -205,9 +186,9 @@ exports('getState', function()
         enabled = Hud.settings.enabled,
         minimal = Hud.settings.minimal,
         ultraMinimal = Hud.settings.ultraMinimal,
+        raceMode = Hud.settings.raceMode,
+        raceHudSize = Hud.settings.raceHudSize,
         position = Hud.settings.position,
         citizenid = Hud.state.citizenid
     }
 end)
-
-Hud.configValid = validateConfig()
